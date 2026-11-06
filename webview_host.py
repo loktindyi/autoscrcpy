@@ -329,6 +329,7 @@ class WebViewHost:
         height: int | None = None,
         placement: dict | None = None,
         on_geometry: Callable[[dict], None] | None = None,
+        devtools: bool = False,
     ) -> None:
         self.url = url
         self.title = title
@@ -340,6 +341,7 @@ class WebViewHost:
         self._height = height
         self._placement = placement if isinstance(placement, dict) else None
         self._on_geometry = on_geometry
+        self._devtools = bool(devtools)
 
         self._hwnd = 0
         self._thread: threading.Thread | None = None
@@ -808,7 +810,15 @@ class WebViewHost:
                 return
             value = settings.value
             try:
-                for index, enabled in ((10, False), (12, False), (16, False)):
+                # 10 = status bar, 12 = DevTools, 14 = default context menus,
+                # 16 = host objects. DevTools/context menus are only enabled
+                # for start-debug.bat (--devtools).
+                for index, enabled in (
+                    (10, False),
+                    (12, self._devtools),
+                    (14, self._devtools),
+                    (16, False),
+                ):
                     with contextlib.suppress(Exception):
                         _call(value, index, HRESULT, w.BOOL)(value, enabled)
             finally:

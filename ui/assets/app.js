@@ -143,6 +143,27 @@
 
   const AUDIO = { option: "noAudio", equals: false };
   const CAMERA = { option: "videoSource", equals: "camera" };
+  const VIRTUAL_DISPLAY_MIN_SDK = 29;
+  const CAMERA_MIN_SDK = 31;
+  const VIDEO_MODES = [
+    {
+      value: "display",
+      label: "设备屏幕",
+      detail: "镜像设备当前屏幕；不附加 --video-source 参数。",
+    },
+    {
+      value: "camera",
+      label: "摄像头",
+      detail:
+        "采集设备摄像头，附加 --video-source=camera；需要 scrcpy 支持且设备为 Android 12+。",
+    },
+    {
+      value: "virtual",
+      label: "虚拟屏幕",
+      detail:
+        "新开一块虚拟显示，附加 --new-display；需要 Android 10+，尺寸可在「虚拟显示」组调整。",
+    },
+  ];
   const ANDROID_NAMES = {
     21: "5.0",
     22: "5.1",
@@ -322,6 +343,15 @@
           ],
           "0"
         ),
+        N(
+          "displayId",
+          "镜像显示 ID",
+          "--display-id",
+          "镜像设备上已有的某块显示，0 是主屏",
+          "对应 --display-id。默认 0（主屏），填 0 不会附加参数。可用 scrcpy --list-displays 查看设备上的显示 ID。它与「虚拟显示尺寸」互斥：已开启虚拟显示时不能再指定显示 ID。",
+          "",
+          { min: 0, step: 1, omitValues: ["0"], conflictsWithVirtual: true }
+        ),
         T(
           "fullscreen",
           "全屏启动",
@@ -378,6 +408,14 @@
           "--power-off-on-close",
           "关闭 scrcpy 时顺便关闭设备屏幕",
           "对应 --power-off-on-close。适合希望镜像结束就立即锁屏/熄屏的场景。"
+        ),
+        X(
+          "startApp",
+          "启动应用",
+          "--start-app",
+          "在镜像开始前启动指定应用",
+          "对应 --start-app。填写完整包名，例如 org.mozilla.firefox；前缀 ? 表示按名称模糊匹配，前缀 + 表示启动前先强制停止，例如 +?firefox。配合「虚拟屏幕」使用时，应用会启动在新屏幕上。",
+          "例如 +?firefox"
         ),
       ],
     },
@@ -485,23 +523,6 @@
       icon: "i-camera",
       note: "把设备摄像头当作视频源",
       options: [
-        S(
-          "videoSource",
-          "视频来源",
-          "--video-source",
-          "镜像屏幕，或采集设备摄像头",
-          "对应 --video-source。默认显示屏幕；选择摄像头后传 --video-source=camera。摄像头采集需要 Android 12 及以上。",
-          [
-            { value: "display", label: "设备屏幕（默认）", arg: null },
-            {
-              value: "camera",
-              label: "设备摄像头",
-              arg: "--video-source=camera",
-              minSdk: 31,
-            },
-          ],
-          "display"
-        ),
         S(
           "cameraFacing",
           "使用哪颗摄像头",
@@ -642,23 +663,6 @@
             placeholder: "例如 1920x1080/420，输入 main 使用主屏",
             minSdk: 29,
           }
-        ),
-        N(
-          "displayId",
-          "镜像显示 ID",
-          "--display-id",
-          "镜像设备上已有的某块显示，0 是主屏",
-          "对应 --display-id。默认 0（主屏），填 0 不会附加参数。可用 scrcpy --list-displays 查看设备上的显示 ID。它与「虚拟显示尺寸」互斥：已开启虚拟显示时不能再指定显示 ID。",
-          "",
-          { min: 0, step: 1, omitValues: ["0"], conflictsWithVirtual: true }
-        ),
-        X(
-          "startApp",
-          "启动应用",
-          "--start-app",
-          "在虚拟屏幕或当前屏幕上启动指定应用",
-          "对应 --start-app。填写完整包名，例如 org.mozilla.firefox；前缀 ? 表示按名称模糊匹配，前缀 + 表示启动前先强制停止，例如 +?firefox。配合虚拟显示使用时，应用会启动在新屏幕上。",
-          "例如 +?firefox"
         ),
         T(
           "flexDisplay",
@@ -965,7 +969,33 @@
     },
   ];
 
-  const OPTIONS = GROUPS.flatMap((group) => group.options);
+  // Hidden technical options stay in OPTIONS so they still participate in
+  // defaults, profiles, capability checks and command generation, but they
+  // are controlled by dedicated UI (the video-source switch above the list).
+  const HIDDEN_OPTIONS = [
+    S(
+      "videoSource",
+      "视频来源",
+      "--video-source",
+      "镜像屏幕，或采集设备摄像头",
+      "对应 --video-source。默认显示屏幕；选择摄像头后传 --video-source=camera。摄像头采集需要 Android 12 及以上。",
+      [
+        { value: "display", label: "设备屏幕（默认）", arg: null },
+        {
+          value: "camera",
+          label: "设备摄像头",
+          arg: "--video-source=camera",
+          minSdk: 31,
+        },
+      ],
+      "display"
+    ),
+  ];
+
+  const OPTIONS = [
+    ...GROUPS.flatMap((group) => group.options),
+    ...HIDDEN_OPTIONS,
+  ];
   const OPTION_MAP = new Map(OPTIONS.map((option) => [option.id, option]));
   const GROUP_MAP = new Map(GROUPS.map((group) => [group.id, group]));
   const DEFAULT_OPTIONS = Object.fromEntries(
@@ -1450,7 +1480,7 @@
       );
     }
     if (dom.appearanceSwitch) {
-      dom.appearanceSwitch.title = `界面明暗：${APPEARANCES[choice]}`;
+      dom.appearanceSwitch.dataset.tooltip = `界面明暗：${APPEARANCES[choice]}`;
     }
     // The colour swatch follows the shared accent palette.
     applyAccent(state.settings.accent);
@@ -1557,7 +1587,7 @@
       savedValue === "system"
         ? `跟随系统（${systemPercent}%）`
         : `${targetPercent}%（系统缩放 ${systemPercent}%）`;
-    dom.scaleControl.title = `界面缩放：${description}`;
+    dom.scaleControl.dataset.tooltip = `界面缩放：${description}`;
     dom.uiScaleInput.setAttribute("aria-label", `界面缩放：${description}`);
     dom.uiScaleToggle.setAttribute(
       "aria-expanded",
@@ -1690,7 +1720,7 @@
       button.disabled = blocked;
       button.classList.toggle("is-active", active);
       button.setAttribute("aria-checked", active ? "true" : "false");
-      button.title = blocked
+      button.dataset.tooltip = blocked
         ? `${choice.detail}（当前环境没有托盘图标，将改为最小化控制台）`
         : choice.detail;
     }
@@ -1735,7 +1765,7 @@
       "aria-checked",
       enabled ? "true" : "false"
     );
-    dom.autoConsoleSwitch.title = enabled
+    dom.autoConsoleSwitch.dataset.tooltip = enabled
       ? "已开启：投屏结束后自动打开最小化或收进托盘的控制台"
       : "已关闭：投屏结束后控制台保持当前状态";
     if (dom.autoConsoleState) {
@@ -1755,7 +1785,7 @@
       "aria-checked",
       enabled ? "true" : "false"
     );
-    dom.keepBackgroundSwitch.title = enabled
+    dom.keepBackgroundSwitch.dataset.tooltip = enabled
       ? "已开启：点窗口 × 会把控制台收进托盘并停止界面，后端继续运行；顶部按钮用于退出"
       : "已关闭：点窗口 × 会彻底退出，顶部按钮用于收进托盘";
     if (dom.keepBackgroundState) {
@@ -1763,7 +1793,7 @@
     }
     if (dom.keepBackgroundRow) {
       dom.keepBackgroundRow.classList.toggle("is-off", !enabled);
-      dom.keepBackgroundRow.title = enabled
+      dom.keepBackgroundRow.dataset.tooltip = enabled
         ? "开启时，点窗口 × 收进托盘并停止界面；顶部按钮变为「退出应用」"
         : "关闭时，点窗口 × 彻底退出；顶部按钮用于「最小化到托盘」";
     }
@@ -1776,7 +1806,7 @@
     }
     if (dom.windowActionButton) {
       dom.windowActionButton.classList.toggle("is-quit", enabled);
-      dom.windowActionButton.title = enabled
+      dom.windowActionButton.dataset.tooltip = enabled
         ? "彻底退出 AutoScrcpy（窗口的关闭按钮会收进托盘）"
         : state.trayAvailable === false
           ? "最小化控制台窗口（当前环境没有托盘图标）"
@@ -2066,11 +2096,13 @@
     setSaveStatus("saved", useLocal ? "正在同步本地设置" : "设置已载入");
 
     dom.scrcpyVersionValue.textContent = state.tools.scrcpyVersion || "未找到";
-    dom.scrcpyVersionValue.title = state.tools.scrcpyPath || "PATH 中未找到 scrcpy";
+    dom.scrcpyVersionValue.dataset.tooltip =
+      state.tools.scrcpyPath || "PATH 中未找到 scrcpy";
     dom.adbVersionValue.textContent = shortAdbVersion(state.tools.adbVersion);
-    dom.adbVersionValue.title = state.tools.adbVersion || "PATH 中未找到 adb";
+    dom.adbVersionValue.dataset.tooltip =
+      state.tools.adbVersion || "PATH 中未找到 adb";
     dom.portValue.textContent = `127.0.0.1:${message.port}`;
-    dom.portValue.title = message.url || "";
+    dom.portValue.dataset.tooltip = message.url || "";
     if (dom.windowBackendValue) {
       const labels = {
         webview: "WebView2",
@@ -2079,7 +2111,7 @@
       };
       dom.windowBackendValue.textContent =
         labels[state.windowBackend] || state.windowBackend || "—";
-      dom.windowBackendValue.title =
+      dom.windowBackendValue.dataset.tooltip =
         state.windowBackend === "webview"
           ? `${message.webviewInfo || "WebView2"} · 关闭按钮由后端接管`
           : "使用 Edge/Chrome 应用窗口；关闭按钮无法被后端接管";
@@ -2525,12 +2557,12 @@
         <p class="profile-meta"></p>
       </span>
       <span class="profile-tools">
-        <button class="profile-action profile-restore" type="button" title="恢复配置（不执行）" aria-label="恢复配置">${svgIcon("i-restore")}</button>
-        <button class="profile-action profile-run" type="button" title="直接运行此配置" aria-label="直接运行此配置">${svgIcon("i-play")}</button>
+        <button class="profile-action profile-restore" type="button" data-tooltip="恢复配置（不执行）" aria-label="恢复配置">${svgIcon("i-restore")}</button>
+        <button class="profile-action profile-run" type="button" data-tooltip="直接运行此配置" aria-label="直接运行此配置">${svgIcon("i-play")}</button>
         ${
           last
             ? ""
-            : `<button class="profile-delete" type="button" title="删除配置" aria-label="删除配置">${svgIcon("i-close")}</button>`
+            : `<button class="profile-delete" type="button" data-tooltip="删除配置" aria-label="删除配置">${svgIcon("i-close")}</button>`
         }
       </span>
     `;
@@ -2738,7 +2770,7 @@
     updateProfileNameState();
     const profiles = profileNameOptions();
     dom.profileNameToggle.disabled = profiles.length === 0;
-    dom.profileNameToggle.title =
+    dom.profileNameToggle.dataset.tooltip =
       profiles.length > 0
         ? "选择已有配置以覆盖"
         : "还没有已保存的配置";
@@ -3064,6 +3096,126 @@
     return value !== "" && value !== "0" && value !== String(option.default ?? "");
   }
 
+  // -----------------------------------------------------------------------
+  // Video source (display / camera / virtual display)
+  // -----------------------------------------------------------------------
+
+  function normalizeVideoMode(value) {
+    return VIDEO_MODES.some((mode) => mode.value === value)
+      ? value
+      : "display";
+  }
+
+  function currentVideoMode() {
+    if (virtualDisplayActive()) {
+      return "virtual";
+    }
+    return state.settings.options.videoSource === "camera"
+      ? "camera"
+      : "display";
+  }
+
+  function videoModeReason(mode) {
+    const sdk = deviceSdk();
+    if (mode === "camera") {
+      if (!supportedArg("--video-source")) {
+        return "当前 scrcpy 不支持 --video-source";
+      }
+      if (sdk !== null && sdk < CAMERA_MIN_SDK) {
+        return `摄像头采集需要 ${minSdkLabel(CAMERA_MIN_SDK)}+`;
+      }
+    } else if (mode === "virtual") {
+      if (!supportedArg("--new-display")) {
+        return "当前 scrcpy 不支持 --new-display";
+      }
+      if (sdk !== null && sdk < VIRTUAL_DISPLAY_MIN_SDK) {
+        return `虚拟显示需要 ${minSdkLabel(VIRTUAL_DISPLAY_MIN_SDK)}+`;
+      }
+    }
+    return "";
+  }
+
+  function videoModeAllowsGroup(groupId) {
+    const mode = currentVideoMode();
+    if (groupId === "camera") {
+      return mode === "camera";
+    }
+    if (groupId === "virtual") {
+      return mode === "virtual";
+    }
+    return true;
+  }
+
+  function syncVideoSourceControl() {
+    const mode = currentVideoMode();
+    // Virtual display and camera are mutually exclusive in scrcpy; an old
+    // profile or hand-edited settings could contain both.
+    if (mode === "virtual" && state.settings.options.videoSource !== "display") {
+      state.settings.options.videoSource = "display";
+    }
+    if (dom.videoSourceOptions) {
+      for (const button of dom.videoSourceOptions.querySelectorAll(
+        "[data-video-mode]"
+      )) {
+        const value = normalizeVideoMode(button.dataset.videoMode);
+        const info = VIDEO_MODES.find((item) => item.value === value);
+        if (!info) {
+          continue;
+        }
+        const reason = videoModeReason(value);
+        const active = value === mode;
+        button.disabled = Boolean(reason);
+        button.classList.toggle("is-active", active);
+        button.setAttribute("aria-checked", active ? "true" : "false");
+        button.dataset.tooltip = reason
+          ? `${info.label}：${info.detail}\n\n当前不可用：${reason}`
+          : `${info.label}：${info.detail}`;
+      }
+    }
+    if (dom.videoSourceHint) {
+      const active = VIDEO_MODES.find((item) => item.value === mode);
+      if (active) {
+        const reason = videoModeReason(mode);
+        const hint = reason
+          ? `${active.detail}（${reason}）`
+          : active.detail;
+        dom.videoSourceHint.textContent = hint;
+        dom.videoSourceHint.dataset.tooltip = hint;
+      }
+    }
+    // Re-evaluate group visibility and any active search results.
+    renderSearch();
+  }
+
+  function setVideoMode(value) {
+    const mode = normalizeVideoMode(value);
+    if (videoModeReason(mode)) {
+      return;
+    }
+    const options = state.settings.options;
+    if (mode === "camera") {
+      options.videoSource = "camera";
+      options.newDisplay = "";
+    } else if (mode === "virtual") {
+      options.videoSource = "display";
+      options.displayId = "";
+      const displayOption = virtualDisplayOption();
+      if (
+        displayOption &&
+        !normalizeComboValue(displayOption, options.newDisplay)
+      ) {
+        options.newDisplay = "main";
+      }
+    } else {
+      options.videoSource = "display";
+      options.newDisplay = "";
+    }
+    const target = virtualDisplayOption() || OPTION_MAP.get("videoSource");
+    if (target) {
+      afterOptionChanged(target, { debounce: false });
+    }
+  }
+
   function getDisabledReason(option) {
     if (!state.helloReceived) {
       return "正在加载设置…";
@@ -3274,6 +3426,22 @@
     });
   }
 
+  function segmentChoiceParameter(option, choice) {
+    // Mirror emitOptionArgs() so the tooltip shows the exact argv fragment
+    // scrcpy would receive for this choice.
+    if (choice.arg !== undefined) {
+      return choice.arg || "";
+    }
+    if (!choice.value || choice.value === option.default) {
+      return "";
+    }
+    return `${option.flag}=${choice.value}`;
+  }
+
+  function segmentChoiceTooltip(option, choice) {
+    return segmentChoiceParameter(option, choice) || "不附加参数";
+  }
+
   function decorateSegmentButton(button, label, isDefault) {
     const clean = label.replace(/（默认）\s*$/, "").trim();
     const text = document.createElement("span");
@@ -3308,17 +3476,18 @@
       </div>
       <div class="option-control"></div>
     `;
+    const copy = row.querySelector(".option-copy");
     const title = row.querySelector(".option-title");
     const shortText = row.querySelector(".option-short");
     title.textContent = option.title;
     shortText.textContent = option.short;
-    title.dataset.tooltip = option.detail;
-    shortText.dataset.tooltip = option.detail;
+    // The whole copy block owns the tooltip, so hovering the title, the
+    // short description or the empty space next to them behaves the same.
+    copy.dataset.tooltip = option.detail;
 
     const argChip = row.querySelector(".arg-chip");
     argChip.textContent =
       option.type === "toggle" ? option.arg : `${option.flag}=…`;
-    argChip.dataset.tooltip = option.detail;
 
     const control = row.querySelector(".option-control");
     if (option.type === "toggle") {
@@ -3353,7 +3522,7 @@
           choice.label,
           choice.value === option.default
         );
-        button.title = choice.label;
+        button.dataset.tooltip = segmentChoiceTooltip(option, choice);
         button.setAttribute("aria-pressed", "false");
         button.addEventListener("click", () => {
           if (button.disabled) {
@@ -3409,7 +3578,6 @@
           preset.label,
           preset.value === option.default
         );
-        button.title = preset.label;
         button.setAttribute("aria-pressed", "false");
         button.addEventListener("click", () => {
           if (button.disabled) {
@@ -3436,7 +3604,6 @@
       if (option.placeholder) {
         input.placeholder = option.placeholder;
       }
-      input.title = "可从右侧选择预设，也可以直接输入";
       bindComboInput(option, input);
 
       const toggle = document.createElement("button");
@@ -3624,9 +3791,7 @@
         tooltipParts.push(versionWarning.message);
       }
       const tooltip = tooltipParts.join("\n\n");
-      row.querySelector(".option-title").dataset.tooltip = tooltip;
-      row.querySelector(".option-short").dataset.tooltip = tooltip;
-      row.querySelector(".arg-chip").dataset.tooltip = tooltip;
+      row.querySelector(".option-copy").dataset.tooltip = tooltip;
 
       if (option.type === "toggle") {
         const button = row.querySelector(".switch");
@@ -3646,6 +3811,11 @@
           );
           const blocked = !choice || !choiceAllowed(choice);
           button.disabled = disabled || blocked;
+          if (choice) {
+            button.dataset.tooltip = segmentChoiceTooltip(option, choice);
+          } else {
+            button.removeAttribute("data-tooltip");
+          }
           button.classList.toggle(
             "is-active",
             Boolean(choice) && choice.value === value
@@ -3654,11 +3824,6 @@
             "aria-pressed",
             choice && choice.value === value ? "true" : "false"
           );
-          if (choice) {
-            button.title = blocked
-              ? `${choice.label}（需 ${minSdkShortLabel(choice.minSdk)}）`
-              : choice.label;
-          }
         }
       } else if (option.type === "select") {
         const button = row.querySelector(".custom-select");
@@ -3703,7 +3868,18 @@
           input.value = String(state.settings.options[option.id] ?? "");
         }
       }
+
+      // Only the segmented choice buttons expose the parameter tooltip; the
+      // text itself is set per choice above. Other controls stay quiet.
+      for (const control of row.querySelectorAll(
+        ".option-control button, .option-control input"
+      )) {
+        if (!control.classList.contains("segmented-button")) {
+          control.removeAttribute("data-tooltip");
+        }
+      }
     }
+    syncVideoSourceControl();
   }
 
   // -----------------------------------------------------------------------
@@ -4427,6 +4603,12 @@
     if (!text) {
       return;
     }
+    // A modal <dialog> lives in the browser's top layer; a body-level tooltip
+    // would be painted behind it, so move the tooltip into the open dialog.
+    const host = target.closest?.("dialog[open]") || document.body;
+    if (dom.floatingTooltip.parentElement !== host) {
+      host.append(dom.floatingTooltip);
+    }
     dom.floatingTooltip.textContent = text;
     dom.floatingTooltip.hidden = false;
     const targetRect = target.getBoundingClientRect();
@@ -4505,7 +4687,7 @@
       }
       if (entry.disabled) {
         item.disabled = true;
-        item.title = entry.title || "";
+        item.dataset.tooltip = entry.title || "";
       }
       const label = document.createElement("span");
       label.className = "combo-menu-label";
@@ -4662,6 +4844,7 @@
     let totalMatches = 0;
     for (const section of dom.optionsRoot.querySelectorAll(".option-group")) {
       const group = GROUP_MAP.get(section.dataset.group);
+      const modeAllowed = videoModeAllowsGroup(section.dataset.group);
       let matches = 0;
       for (const row of section.querySelectorAll(".option-row")) {
         const option = OPTION_MAP.get(row.dataset.option);
@@ -4681,11 +4864,11 @@
           .toLowerCase();
         const visible = !query || haystack.includes(query);
         row.hidden = !visible;
-        if (visible) {
+        if (visible && modeAllowed) {
           matches += 1;
         }
       }
-      section.hidden = Boolean(query) && matches === 0;
+      section.hidden = !modeAllowed || (Boolean(query) && matches === 0);
       section.querySelector(".group-count").textContent = query
         ? `${matches}/${group.options.length}`
         : String(group.options.length);
@@ -4742,6 +4925,8 @@
       "capabilityTitle",
       "capabilityText",
       "capabilityBadge",
+      "videoSourceOptions",
+      "videoSourceHint",
       "optionsRoot",
       "noResults",
       "commandLine",
@@ -4797,6 +4982,14 @@
         return;
       }
       applyAppearance(button.dataset.appearanceValue, { persist: true });
+    });
+
+    dom.videoSourceOptions?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-video-mode]");
+      if (!button || button.disabled) {
+        return;
+      }
+      setVideoMode(button.dataset.videoMode);
     });
 
     const colorScheme = window.matchMedia?.("(prefers-color-scheme: light)");
@@ -5057,7 +5250,10 @@
       if (!target) {
         return;
       }
-      if (event.relatedTarget && target.contains(event.relatedTarget)) {
+      // Nested tooltip owners (for example the version-warning button inside
+      // .option-copy) must be able to hand the tooltip back and forth.
+      const previous = event.relatedTarget?.closest?.("[data-tooltip]");
+      if (previous === target) {
         return;
       }
       showTooltip(target);
@@ -5067,7 +5263,8 @@
       if (!target) {
         return;
       }
-      if (event.relatedTarget && target.contains(event.relatedTarget)) {
+      const next = event.relatedTarget?.closest?.("[data-tooltip]");
+      if (next === target) {
         return;
       }
       hideTooltip();
@@ -5079,6 +5276,17 @@
       }
     });
     document.addEventListener("focusout", hideTooltip);
+    // A modal dialog owns the top layer; hide any tooltip that was moved into
+    // it so a stale bubble cannot reappear when the dialog is reopened.
+    document.addEventListener(
+      "close",
+      (event) => {
+        if (event.target instanceof HTMLDialogElement) {
+          hideTooltip();
+        }
+      },
+      true
+    );
     window.addEventListener(
       "scroll",
       (event) => {

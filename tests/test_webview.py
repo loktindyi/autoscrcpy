@@ -39,6 +39,10 @@ class WebViewAssetsTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             app.parse_args(["--window-backend", "nope"])
 
+    def test_devtools_cli_flag(self) -> None:
+        self.assertFalse(app.parse_args([]).devtools)
+        self.assertTrue(app.parse_args(["--devtools"]).devtools)
+
 
 class WebViewHostStateTests(unittest.TestCase):
     def test_host_is_inert_before_start(self) -> None:

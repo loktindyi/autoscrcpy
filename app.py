@@ -42,7 +42,7 @@ import webview_host
 import win_tray
 
 APP_NAME = "AutoScrcpy"
-APP_VERSION = "2.3.0"
+APP_VERSION = "2.4.0"
 BASE_DIR = Path(__file__).resolve().parent
 UI_DIR = BASE_DIR / "ui"
 TRAY_ICON_PATH = BASE_DIR / "assets" / "autoscrcpy.ico"
@@ -939,6 +939,7 @@ class AutoScrcpyApp:
         self.window_state_file = config_dir / "window-state.json"
         self.window_state = load_window_state(self.window_state_file)
         self.window_state_lock = threading.Lock()
+        self.devtools_enabled = False
         self.tools: dict[str, Any] = {}
         self.server: Any = None
         self.sock: socket.socket | None = None
@@ -1168,6 +1169,7 @@ class AutoScrcpyApp:
             appearance=resolve_appearance(self.settings.get("appearance")),
             placement=self.window_state,
             on_geometry=self._remember_window_geometry,
+            devtools=self.devtools_enabled,
         )
         # Publish the backend before navigation starts so the first `hello`
         # already reports "webview" to the page.
@@ -1896,6 +1898,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Write verbose logs to stderr as well.",
     )
     parser.add_argument(
+        "--devtools",
+        action="store_true",
+        help="Enable WebView2 DevTools (F12 / right-click Inspect) for UI debugging.",
+    )
+    parser.add_argument(
         "--print-url",
         action="store_true",
         help="Print the UI URL to stdout (debugging).",
@@ -1914,6 +1921,7 @@ async def async_main(args: argparse.Namespace) -> int:
     app = AutoScrcpyApp(config_dir, requested_port=args.port)
     app.tray_enabled = not args.no_tray
     app.window_backend_pref = args.window_backend
+    app.devtools_enabled = args.devtools
     await app.start()
     app.start_tray()
     if args.print_url:
