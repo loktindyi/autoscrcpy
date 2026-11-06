@@ -1,24 +1,23 @@
 # AutoScrcpy
 
-> 当前版本 **2.1.2** · 面向 Windows 10/11 · 需要 Python 3.10+
+> 当前版本 **2.2.0** · 面向 Windows 10/11 · 需要 Python 3.10+
 
 把 scrcpy 的命令行参数变成一眼能看懂的开关。Python 只在本机做后端；界面是一套可以直接编辑的 HTML/CSS/JS，从 2.0 起默认运行在**程序自带的 WebView2 窗口**里，而不是另开一个无头浏览器。支持浅色/深色/跟随系统与 8 种强调色。
 
 ![AutoScrcpy 界面](docs/screenshot-main.png)
 
-> 截图拍摄于 2.1.0 版，其中设备信息为演示数据；实际界面会根据已连接的 adb 设备显示。
+> 截图拍摄于 2.1.0 版，其中设备信息为演示数据；2.2 新增的「硬件解码」行未包含在这张截图里。
 
 ## 快速开始
 
-1. 确认 Python 3.10+、`scrcpy`、`adb` 都在 PATH 中（见下方「环境要求」）。
-2. 如未安装 Python 依赖，双击 `install-dependencies.bat`，或执行：
+1. 双击 **`install-dependencies.bat`**：安装 Python 依赖，并通过 winget 安装 `scrcpy`（内含 `adb`）。
 
-   ```bat
-   python -m pip install -r requirements.txt
-   ```
+   - winget 会从 GitHub 下载 scrcpy 安装包。如果网络无法访问 GitHub，下载会超时或失败，请先检查网络/代理，或从 [scrcpy Releases](https://github.com/Genymobile/scrcpy/releases) 手动下载 `scrcpy-win64-v5.0.1.zip`，解压后把包含 `scrcpy.exe` 的目录加入 PATH。
+   - `adb` 随 scrcpy 一起提供，不需要单独安装。
+   - 也可以只安装 Python 依赖：`python -m pip install -r requirements.txt`。
 
-3. 双击 **`launch.pyw`**。Explorer 会用 `pythonw.exe` 运行它，它再用 `subprocess.Popen` + `CREATE_NO_WINDOW` 启动后端；后端随后打开一个原生 WebView2 窗口，通知区域出现 AutoScrcpy 图标。
-4. 选择设备，调整开关，点击「运行 scrcpy」。
+2. 双击 **`launch.pyw`**。Explorer 会用 `pythonw.exe` 运行它，它再用 `subprocess.Popen` + `CREATE_NO_WINDOW` 启动后端；后端随后打开一个原生 WebView2 窗口，通知区域出现 AutoScrcpy 图标。
+3. 选择设备，调整开关，点击「运行 scrcpy」。
 
 需要看完整错误时，双击 `start-debug.bat`，它会在控制台里启动后端。
 
@@ -32,10 +31,14 @@
 | Python | 3.10 或更高 |
 | Python 依赖 | `websockets>=15,<17`，见 `requirements.txt` |
 | 窗口 | 推荐 **Microsoft Edge WebView2 运行时**（Windows 11 自带；Windows 10 安装过 Edge 一般也有）。缺失时自动回退到 Edge/Chrome 应用窗口 |
-| scrcpy | 以 v4.1 为基准；旧版本也能启动，界面会按 `scrcpy --help` 隐藏不支持的参数 |
-| adb | 与 scrcpy 同目录，或已在 PATH 中 |
+| scrcpy | 推荐 **v5.0.1**；v4.1 起也能启动，界面会按 `scrcpy --help` 隐藏不支持的参数（例如 5.0 新增的 `--hwdec`） |
+| adb | 随 scrcpy 一起提供（与 `scrcpy.exe` 同目录），或已在 PATH 中，通常不需要单独安装 |
 
 `scrcpy` 和 `adb` 的版本、本机端口和当前窗口类型显示在左栏底部；找不到 scrcpy 时运行按钮不可用，找不到 adb 时设备列表会报错。
+
+> **scrcpy 5.0 / 5.0.1**：5.0 新增电脑端硬件解码（`--hwdec`，CPU 占用可降约 10 倍）、改进视频缓冲、音频 playback 捕获覆盖所有音频 usage、Windows ARM64 构建及若干修复；5.0.1 只修复硬件解码问题（Linux NVIDIA、Windows H.265、多 GPU、EGL）。AutoScrcpy 2.2 新增了 `--hwdec` 开关，其余是 scrcpy 内部行为，不需要新参数。
+>
+> winget 与手动下载都依赖 GitHub；网络受限时请先配置代理，或从 Releases 下载 zip 手动解压。
 
 ### 为什么改用 WebView2
 
@@ -59,10 +62,10 @@ WebView2 由 Edge 运行时提供（`msedgewebview2.exe`），界面仍然通过
 
 ## 已实现的功能
 
-- **运行环境自检**：启动时读取 `scrcpy --version`、`scrcpy --help` 和 `adb version`；当前 scrcpy 不支持的开关会置灰。
+- **运行环境自检**：启动时读取 `scrcpy --version`、`scrcpy --help` 和 `adb version`；当前 scrcpy 不支持的开关会置灰，5.0 才有的 `--hwdec` 在旧版上会提示需要 5.0+。
 - **设备发现**：调用 `adb devices -l`，显示在线、离线、未授权设备，并补全 Android 版本、API、厂商、型号和无线/USB 类型。
 - **无线连接**：界面内输入 `IP:端口` 执行 `adb connect`，无线设备可以单独断开。
-- **参数翻译**：**62 个**常用 scrcpy 开关，分为画面、设备行为、声音、摄像头、虚拟显示、控制、录制与后台、高级。
+- **参数翻译**：**63 个**常用 scrcpy 开关，分为画面、设备行为、声音、摄像头、虚拟显示、控制、录制与后台、高级。
   - 每个开关显示原始参数，例如 `--stay-awake`、`--max-fps=…`。
   - 小字是简短说明；悬停参数名或参数值（如 `--max-fps=…`）显示完整解释。
   - **默认值不生成参数**：官方默认值标记为「默认」，即使手动选中或输入该值，也不会添加对应参数。
@@ -77,11 +80,12 @@ WebView2 由 Edge 运行时提供（`msedgewebview2.exe`），界面仍然通过
   - 不兼容的选项会自动禁用；已经打开的开关会保留状态、显示黄色警告图标，本次命令自动跳过。
 
   ![配置与 Android 版本警告](docs/screenshot-warnings.png)
+- **硬件解码（scrcpy 5.0+）**：画面组新增「硬件解码（电脑）」，对应 `--hwdec`。可选自动（默认，优先硬件、失败回退软件）、软件解码、D3D11VA（Windows 硬解）；旧版 scrcpy 没有这个参数时整项置灰并提示需要 5.0+，开启「无窗口运行」时也会禁用，避免 scrcpy 报错退出。
 - **虚拟显示**：`--new-display`、`--display-id`、`--start-app`、`--flex-display`、`--no-vd-destroy-content`、`--no-vd-system-decorations`、`--display-ime-policy`，详见「虚拟显示」。
 - **额外参数**：右栏「额外参数」输入框可以追加任意冷门参数，支持空格分隔和双引号；格式错误会提示并阻止运行，详见「额外参数」。
 - **命名配置**：点「保存当前」为当前参数与设备命名保存，最多 100 个；名称输入框支持选择已有配置覆盖；右键恢复、双击运行、卡片上有恢复/运行/删除按钮。
 - **自动记录「上一次」**：每次 scrcpy 成功启动后，完整命令自动写入「上一次」配置，固定在列表顶部。
-- **界面缩放**：顶栏组合框，默认「跟随系统」，预设 75%–250%（25% 步进），也可输入 70%–250%；高倍率自动切换两栏布局。
+- **界面缩放**：顶栏组合框，默认「跟随系统」，预设 75%–250%（25% 步进），也可输入 70%–250%；高倍率下尽量保留三栏，中栏不足约 300px 时才切换两栏。
 - **投屏后的窗口行为**：运行按钮上方三个横向按钮，默认「仅聚焦到投屏窗口」：仅聚焦 / 最小化控制台 / 最小化到托盘（停止界面）。
 - **投屏被关闭后自动弹出控制台**：默认开启；投屏结束、被停止或异常退出后，会自动还原最小化或托盘中的控制台。
 - **关闭窗口时保留后台**：右栏开关，决定点窗口 **×** 时收进托盘还是退出，并让右上角按钮在「退出应用」和「最小化到托盘」之间切换，详见「窗口、托盘与关闭行为」。
@@ -192,7 +196,7 @@ AutoScrcpy/
 ├─ win_tray.py                原生 Win32 托盘图标与窗口聚焦/最小化
 ├─ launch.pyw                 双击启动，隐藏后端控制台
 ├─ start-debug.bat            带控制台的调试启动
-├─ install-dependencies.bat   安装 Python 依赖
+├─ install-dependencies.bat   安装 Python 依赖，并用 winget 安装 scrcpy（内含 adb）
 ├─ requirements.txt
 ├─ assets/
 │  ├─ autoscrcpy.ico          程序窗口 / 任务栏图标（16–256 px，墨迹居中）
@@ -243,7 +247,7 @@ AutoScrcpy/
 ```
 
 - 启动时先用 `bind(("127.0.0.1", 0))` 取得空闲端口，再把 socket 交给 WebSocket 服务器，避免端口竞态。
-- 启动时执行 `scrcpy --version`、`scrcpy --help` 和 `adb version`，把版本与参数表随 `hello` 消息发给前端。
+- 启动时执行 `scrcpy --version`、`scrcpy --help` 和 `adb version`，把版本与参数表随 `hello` 消息发给前端；`parse_supported_args` 只解析 `--help` 中 4 空格缩进的选项行，因此 5.0 的 `--hwdec` 等新参数会自动参与能力检测。
 - 同一个端口既提供 HTML/CSS/JS，也提供 `/ws`，前端不需要处理跨域或 `file://` 限制。
 - 前端生成完整 scrcpy argv；后端检查首项必须是 `scrcpy`，再通过 `subprocess.Popen` 直接启动，不经过 shell。
 - **WebView2 宿主**：`webview_host.py` 在独立 STA 线程里创建 Win32 窗口和 WebView2（`ICoreWebView2Controller`），主线程继续跑 asyncio。窗口尺寸变化、显示/隐藏、关闭请求通过动作队列 + `PostMessage` 投递，COM 调用在消息回调返回后执行，避免 ctypes 重入问题。
@@ -332,7 +336,7 @@ set AUTOSCRCPY_BROWSER=C:\path\to\msedge.exe
 - 预设为 75%–250% 中 25 的倍数；也可以直接输入 70%–250% 之间的任意百分比，失焦或按 Enter 生效。
 - **跟随系统**（默认）：读取 Windows 的系统缩放百分比。
 - 手动百分比会按浏览器 DPI 做补偿，不会把系统缩放重复乘一遍。
-- 高倍率下自动切换两栏并允许页面滚动。
+- 高倍率下尽量保留三栏；中栏不足约 300px 时切换两栏并允许页面滚动。
 - 选择立即保存到 `settings.json`，下次启动恢复。
 
 ## 搜索与键盘快捷键
@@ -398,12 +402,12 @@ T(
 - 设备已连接时，界面会自动选中唯一在线设备，命令自动带 `-s 192.168.5.60:6728`。
 - 如果 adb 尚未连接，在「无线调试连接」里填 `192.168.5.60:6728` 点「连接」。普通无线调试端口通常是 `5555`。
 
-版本规则依据 scrcpy v4.1 官方文档与源码：
+版本规则依据 scrcpy v5.0.1 官方文档与源码：
 
-- [Virtual display：Android 10+](https://github.com/Genymobile/scrcpy/blob/v4.1/server/src/main/java/com/genymobile/scrcpy/Server.java)
-- [Audio：Android 11+，playback/audio-dup 为 Android 13+](https://github.com/Genymobile/scrcpy/blob/v4.1/doc/audio.md)
-- [Camera：Android 12+](https://github.com/Genymobile/scrcpy/blob/v4.1/doc/camera.md)
-- [Keyboard / Mouse：UHID 的旧系统限制](https://github.com/Genymobile/scrcpy/blob/v4.1/doc/keyboard.md)
+- [Virtual display：Android 10+](https://github.com/Genymobile/scrcpy/blob/v5.0.1/server/src/main/java/com/genymobile/scrcpy/Server.java)
+- [Audio：Android 11+，playback/audio-dup 为 Android 13+](https://github.com/Genymobile/scrcpy/blob/v5.0.1/doc/audio.md)
+- [Camera：Android 12+](https://github.com/Genymobile/scrcpy/blob/v5.0.1/doc/camera.md)
+- [Keyboard / Mouse：UHID 的旧系统限制](https://github.com/Genymobile/scrcpy/blob/v5.0.1/doc/keyboard.md)
 
 ## 开发与测试
 
@@ -445,11 +449,17 @@ python -m unittest discover -s tests -v
 **双击后没有窗口**
 先运行 `start-debug.bat`。如果提示 `No module named websockets`，运行 `install-dependencies.bat`；如果提示找不到 scrcpy，检查 PATH。
 
+**winget 安装 scrcpy 失败或很慢**
+winget 需要从 GitHub 下载 scrcpy 安装包。先确认网络/代理能访问 GitHub，再尝试 `winget source update` 后重试；也可以从 [scrcpy Releases](https://github.com/Genymobile/scrcpy/releases) 手动下载 `scrcpy-win64-v5.0.1.zip`，解压后把包含 `scrcpy.exe` 的目录加入 PATH。adb 已随 scrcpy 提供，不需要单独安装。
+
+**升级 scrcpy 后「硬件解码」还是灰色**
+确认版本是 5.0+：在控制台运行 `scrcpy --version`，并确认 PATH 中只有一个 scrcpy。AutoScrcpy 只按当前 `scrcpy --help` 是否列出 `--hwdec` 来判断，旧版或混装多个版本时会保持禁用。
+
 **设备显示未授权**
 解锁设备，在弹窗中允许 USB 调试，然后点界面右上角刷新。无线调试还需要设备与电脑在同一网络。
 
 **某个参数是灰色的**
-看参数下方的黄色提示或悬停参数名：可能是当前 `scrcpy --help` 没有这个参数、设备 Android 版本不足、需要先切换到摄像头/开启声音/开启虚拟显示，或者录制相关参数还没有填写录制文件。
+看参数下方的黄色提示或悬停参数名：可能是当前 `scrcpy --help` 没有这个参数（例如旧版 scrcpy 没有 5.0 的 `--hwdec`）、设备 Android 版本不足、需要先切换到摄像头/开启声音/开启虚拟显示/关闭无窗口运行，或者录制相关参数还没有填写录制文件。
 
 **虚拟显示整组是灰色的**
 虚拟显示需要 Android 10+；此外「虚拟显示尺寸」与「镜像显示 ID」互斥，填写其中一个会禁用另一个。

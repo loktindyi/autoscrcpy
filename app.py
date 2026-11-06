@@ -42,7 +42,7 @@ import webview_host
 import win_tray
 
 APP_NAME = "AutoScrcpy"
-APP_VERSION = "2.1.2"
+APP_VERSION = "2.2.0"
 BASE_DIR = Path(__file__).resolve().parent
 UI_DIR = BASE_DIR / "ui"
 TRAY_ICON_PATH = BASE_DIR / "assets" / "autoscrcpy.ico"
@@ -551,6 +551,19 @@ async def run_capture(
 # ---------------------------------------------------------------------------
 
 
+def parse_supported_args(help_text: str) -> list[str]:
+    """Extract long option names from the ``scrcpy --help`` output.
+
+    Option lines are indented by exactly four spaces; wrapped descriptions are
+    indented further, so they are ignored.
+    """
+    supported: set[str] = set()
+    for line in help_text.splitlines():
+        if line.startswith("    ") and not line.startswith("        "):
+            supported.update(OPTION_RE.findall(line[:100]))
+    return sorted(supported)
+
+
 async def discover_tools() -> dict[str, Any]:
     scrcpy_path = shutil.which("scrcpy")
     adb_path = shutil.which("adb")
@@ -587,11 +600,7 @@ async def discover_tools() -> dict[str, Any]:
             info["errors"].append(f"无法读取 scrcpy 版本：{exc}")
         try:
             code, output = await run_capture([scrcpy_path, "--help"], 20)
-            supported: set[str] = set()
-            for line in output.splitlines():
-                if line.startswith("    ") and not line.startswith("        "):
-                    supported.update(OPTION_RE.findall(line[:100]))
-            info["supportedArgs"] = sorted(supported)
+            info["supportedArgs"] = parse_supported_args(output)
             if code != 0:
                 info["errors"].append(f"scrcpy --help 退出码 {code}")
         except Exception as exc:

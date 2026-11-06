@@ -47,6 +47,31 @@ abc123    no permissions (user in plugdev group); see https://example.invalid
         self.assertEqual(devices[0]["state"], "no permissions")
 
 
+class ScrcpyHelpParsingTests(unittest.TestCase):
+    def test_supported_args_include_hwdec(self) -> None:
+        output = """Usage: scrcpy [options]
+
+    --hwdec=mode          Configure hardware video decoding on the computer.
+                          Possible values are auto, disabled, d3d11va.
+    --no-audio            Disable audio forwarding.
+        --ignored         wrapped description lines are not option lines
+"""
+        self.assertEqual(
+            app.parse_supported_args(output), ["--hwdec", "--no-audio"]
+        )
+
+    def test_help_without_new_options_has_no_hwdec(self) -> None:
+        output = """Usage: scrcpy [options]
+
+    -b, --video-bit-rate=rate
+    --no-audio            Disable audio forwarding.
+"""
+        self.assertEqual(
+            app.parse_supported_args(output),
+            ["--no-audio", "--video-bit-rate"],
+        )
+
+
 class SettingsTests(unittest.TestCase):
     def test_sanitize_bounds_and_unknown_values(self) -> None:
         raw = {

@@ -260,6 +260,19 @@
           "h264"
         ),
         S(
+          "hwdec",
+          "硬件解码（电脑）",
+          "--hwdec",
+          "默认优先显卡解码，失败时回退软件解码",
+          "对应 --hwdec，scrcpy 5.0 起新增。默认自动：优先使用可用的硬件解码器，失败时回退软件解码；「软件解码」强制关闭硬件解码；D3D11VA 强制使用 Windows 的 D3D11VA 硬解，显卡或驱动不支持时会直接启动失败（不会回退），不确定时请用默认的自动。硬件解码只影响电脑端播放，必须有视频播放，所以「无窗口运行」时不可用。Windows 上播放 H.265 时建议使用 scrcpy 5.0.1 或更高版本。",
+          [
+            { value: "", label: "自动（默认）" },
+            { value: "disabled", label: "软件解码" },
+            { value: "d3d11va", label: "D3D11VA" },
+          ],
+          ""
+        ),
+        S(
           "orientation",
           "整体方向（预览+录制）",
           "--orientation",
@@ -387,7 +400,7 @@
           "声音来源",
           "--audio-source",
           "选择输出、播放或麦克风",
-          "对应 --audio-source。默认转发设备整体输出；playback 只捕获应用播放的声音，需要 Android 13+；mic 采集设备麦克风，需要 Android 11+。",
+          "对应 --audio-source。默认转发设备整体输出；playback 捕获应用播放的声音（scrcpy 5.0 起会包含所有音频 usage），需要 Android 13+；mic 采集设备麦克风，需要 Android 11+。",
           [
             { value: "output", label: "设备输出（默认）", arg: null },
             { value: "playback", label: "应用播放", minSdk: 33 },
@@ -962,6 +975,10 @@
   const PRESET_SCALE_STEPS = [75, 100, 125, 150, 175, 200, 225, 250];
   const SCALE_MIN = 70;
   const SCALE_MAX = 250;
+  // When the UI is zoomed, keep three columns until the middle column would
+  // be narrower than this.  Was 430px; the middle only needs about 70% of
+  // that before switching to the two-column layout.
+  const COMPACT_CENTER_MIN = 300;
   const AFTER_START_CHOICES = [
     {
       value: "focus",
@@ -1639,7 +1656,7 @@
     const compact =
       factor > 1.001 &&
       window.innerWidth > 1180 &&
-      availableCenter < 430;
+      availableCenter < COMPACT_CENTER_MIN;
     document.documentElement.classList.toggle("ui-compact", compact);
 
     syncUiScaleControl(systemScale, targetScale);
@@ -3052,6 +3069,9 @@
       return "正在加载设置…";
     }
     const sdk = deviceSdk();
+    if (option.id === "hwdec" && option.flag && !supportedArg(option.flag)) {
+      return "硬件解码需要 scrcpy 5.0+（当前版本没有 --hwdec）";
+    }
     if (option.flag && !supportedArg(option.flag)) {
       return "当前 scrcpy 版本不支持此参数";
     }
@@ -3060,6 +3080,9 @@
     }
     if (option.id === "displayId" && virtualDisplayActive()) {
       return "已开启「虚拟显示尺寸」，两者互斥";
+    }
+    if (option.id === "hwdec" && state.settings.options.noWindow) {
+      return "「无窗口运行」没有视频播放，硬件解码不可用";
     }
     if (option.requiresVirtualDisplay) {
       if (sdk !== null && sdk < 29) {
