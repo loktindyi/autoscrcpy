@@ -975,10 +975,10 @@
   const PRESET_SCALE_STEPS = [75, 100, 125, 150, 175, 200, 225, 250];
   const SCALE_MIN = 70;
   const SCALE_MAX = 250;
-  // When the UI is zoomed, keep three columns until the middle column would
-  // be narrower than this.  Was 430px; the middle only needs about 70% of
-  // that before switching to the two-column layout.
-  const COMPACT_CENTER_MIN = 300;
+  // Minimum layout width (CSS px, after the UI zoom is applied) that still
+  // fits the three columns: 280 + 462 + 350 + two 15px gaps + 40px shell
+  // padding. Below this the console moves below the builder.
+  const THREE_COL_MIN = 1162;
   const AFTER_START_CHOICES = [
     {
       value: "focus",
@@ -1651,12 +1651,12 @@
     document.documentElement.dataset.uiZoom = String(targetScale);
     document.documentElement.classList.toggle("ui-zoomed", factor > 1.08);
 
-    const sideWidth = window.innerWidth > 1440 ? 766 : 728;
-    const availableCenter = window.innerWidth - sideWidth * factor;
-    const compact =
-      factor > 1.001 &&
-      window.innerWidth > 1180 &&
-      availableCenter < COMPACT_CENTER_MIN;
+    // CSS media queries still use the unzoomed viewport width, so decide the
+    // two-column switch from the real layout width (viewport / zoom). This
+    // keeps three columns whenever they actually fit and avoids a stale
+    // compact layout that leaves the builder stretched across the window.
+    const layoutWidth = window.innerWidth / factor;
+    const compact = layoutWidth < THREE_COL_MIN;
     document.documentElement.classList.toggle("ui-compact", compact);
 
     syncUiScaleControl(systemScale, targetScale);

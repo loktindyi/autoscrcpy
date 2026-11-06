@@ -48,6 +48,7 @@ WM_ERASEBKGND = 0x0014
 WM_SETICON = 0x0080
 WM_SIZE = 0x0005
 WM_DPICHANGED = 0x02E0
+WM_EXITSIZEMOVE = 0x0232
 WM_APP = 0x8000
 WM_APP_ACTION = WM_APP + 17
 WM_GETMINMAXINFO = 0x0024
@@ -57,6 +58,7 @@ SW_SHOW = 5
 SW_MINIMIZE = 6
 SW_RESTORE = 9
 SW_SHOWNORMAL = 1
+SW_SHOWMAXIMIZED = 3
 
 ICON_SMALL = 0
 ICON_BIG = 1
@@ -70,6 +72,11 @@ WS_EX_TOOLWINDOW = 0x00000080
 
 MONITOR_DEFAULTTONEAREST = 2
 SPI_GETWORKAREA = 0x0030
+SM_XVIRTUALSCREEN = 76
+SM_YVIRTUALSCREEN = 77
+SM_CXVIRTUALSCREEN = 78
+SM_CYVIRTUALSCREEN = 79
+WPF_RESTORETOMAXIMIZED = 0x0002
 
 DWMWA_USE_IMMERSIVE_DARK_MODE = 20
 DWMWA_CAPTION_COLOR = 35
@@ -195,6 +202,17 @@ class MINMAXINFO(ctypes.Structure):
     ]
 
 
+class WINDOWPLACEMENT(ctypes.Structure):
+    _fields_ = [
+        ("length", w.UINT),
+        ("flags", w.UINT),
+        ("showCmd", w.UINT),
+        ("ptMinPosition", POINT),
+        ("ptMaxPosition", POINT),
+        ("rcNormalPosition", RECT),
+    ]
+
+
 class Interface(ctypes.Structure):
     _fields_ = [("vtable", ctypes.POINTER(LPVOID))]
 
@@ -309,6 +327,8 @@ class WebViewHost:
         appearance: str = "dark",
         width: int | None = None,
         height: int | None = None,
+        placement: dict | None = None,
+        on_geometry: Callable[[dict], None] | None = None,
     ) -> None:
         self.url = url
         self.title = title
@@ -318,6 +338,8 @@ class WebViewHost:
         self._appearance = "light" if appearance == "light" else "dark"
         self._width = width
         self._height = height
+        self._placement = placement if isinstance(placement, dict) else None
+        self._on_geometry = on_geometry
 
         self._hwnd = 0
         self._thread: threading.Thread | None = None
@@ -551,6 +573,10 @@ class WebViewHost:
         u.UnregisterClassW.restype = w.BOOL
         u.SetWindowPos.argtypes = [w.HWND, w.HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, w.UINT]
         u.SetWindowPos.restype = w.BOOL
+        u.GetWindowPlacement.argtypes = [w.HWND, ctypes.POINTER(WINDOWPLACEMENT)]
+        u.GetWindowPlacement.restype = w.BOOL
+        u.GetSystemMetrics.argtypes = [ctypes.c_int]
+        u.GetSystemMetrics.restype = ctypes.c_int
         u.IsIconic.argtypes = [w.HWND]
         u.IsIconic.restype = w.BOOL
         u.FillRect.argtypes = [w.HDC, ctypes.POINTER(RECT), w.HANDLE]
@@ -571,6 +597,48 @@ class WebViewHost:
             ]
             self._dwmapi.DwmSetWindowAttribute.restype = HRESULT
 
+    def _metric(self, index: int, fallback: int) -> int:
+        if self._user32 is None:
+            return fallback
+        try:
+            value = int(self._user32.GetSystemMetrics(index) or 0)
+        except Exception:
+            return fallback
+        return value if value else fallback
+
+    def _initial_bounds(
+        self, work_left: int, work_top: int, work_w: int, work_h: int
+    ) -> tuple[int, int, int, int]:
+        width = self._width or max(980, min(1480, work_w - 80))
+        height = self._height or max(680, min(940, work_h - 80))
+        width = max(MIN_WIDTH, min(width, max(MIN_WIDTH, work_w)))
+        height = max(MIN_HEIGHT, min(height, max(MIN_HEIGHT, work_h)))
+        left = work_left + max(0, (work_w - width) // 2)
+        top = work_top + max(0, (work_h - height) // 2)
+
+        placement = self._placement or {}
+        try:
+            saved_w = int(placement.get("width", 0))
+            saved_h = int(placement.get("height", 0))
+            saved_x = int(placement.get("x", 0))
+            saved_y = int(placement.get("y", 0))
+        except (TypeError, ValueError):
+            return left, top, width, height
+        if saved_w < MIN_WIDTH or saved_h < MIN_HEIGHT:
+            return left, top, width, height
+
+        vx = self._metric(SM_XVIRTUALSCREEN, work_left)
+        vy = self._metric(SM_YVIRTUALSCREEN, work_top)
+        vw = self._metric(SM_CXVIRTUALSCREEN, work_w)
+        vh = self._metric(SM_CYVIRTUALSCREEN, work_h)
+        width = min(saved_w, max(MIN_WIDTH, vw))
+        height = min(saved_h, max(MIN_HEIGHT, vh))
+        # Keep at least part of the title bar on a visible desktop, even if the
+        # monitor layout changed since the geometry was saved.
+        left = max(vx - width + 120, min(saved_x, vx + vw - 120))
+        top = max(vy, min(saved_y, vy + vh - 80))
+        return left, top, width, height
+
     def _create_window(self) -> None:
         u = self._user32
         assert u is not None and self._kernel32 is not None
@@ -580,12 +648,9 @@ class WebViewHost:
             u.SystemParametersInfoW(SPI_GETWORKAREA, 0, ctypes.byref(rect), 0)
         work_w = max(MIN_WIDTH + 80, rect.right - rect.left) if rect.right else 1920
         work_h = max(MIN_HEIGHT + 80, rect.bottom - rect.top) if rect.bottom else 1080
-        width = self._width or max(980, min(1480, work_w - 80))
-        height = self._height or max(680, min(940, work_h - 80))
-        width = max(MIN_WIDTH, min(width, work_w))
-        height = max(MIN_HEIGHT, min(height, work_h))
-        left = rect.left + max(0, (work_w - width) // 2)
-        top = rect.top + max(0, (work_h - height) // 2)
+        left, top, width, height = self._initial_bounds(
+            rect.left, rect.top, work_w, work_h
+        )
 
         self._wndproc = ctypes.WINFUNCTYPE(
             ctypes.c_ssize_t, w.HWND, w.UINT, w.WPARAM, ctypes.c_ssize_t
@@ -618,6 +683,8 @@ class WebViewHost:
         )
         if not self._hwnd:
             raise ctypes.WinError(ctypes.get_last_error())
+        if self._placement and self._placement.get("maximized"):
+            u.ShowWindow(self._hwnd, SW_SHOWMAXIMIZED)
         LOGGER.info("WebView2 window created (%sx%s)", width, height)
         self._apply_window_look()
 
@@ -792,6 +859,8 @@ class WebViewHost:
                     self._update_bounds()
                 elif action == "layout":
                     self._update_bounds()
+                elif action == "geometry":
+                    self._notify_geometry()
                 elif action == "activate":
                     self._activate()
             except Exception:
@@ -799,9 +868,55 @@ class WebViewHost:
         if self._closing and not self._hwnd:
             return
 
+    def _window_placement(self) -> dict | None:
+        if not self._hwnd or self._user32 is None:
+            return None
+        placement = WINDOWPLACEMENT()
+        placement.length = ctypes.sizeof(WINDOWPLACEMENT)
+        if not self._user32.GetWindowPlacement(
+            self._hwnd, ctypes.byref(placement)
+        ):
+            return None
+        rect = placement.rcNormalPosition
+        width = int(rect.right - rect.left)
+        height = int(rect.bottom - rect.top)
+        if width < MIN_WIDTH or height < MIN_HEIGHT:
+            return None
+        # GetWindowPlacement reports the normal rectangle in workspace
+        # coordinates; CreateWindowEx expects screen coordinates.
+        work = RECT()
+        if self._user32 is not None:
+            with contextlib.suppress(Exception):
+                self._user32.SystemParametersInfoW(
+                    SPI_GETWORKAREA, 0, ctypes.byref(work), 0
+                )
+        return {
+            "x": int(rect.left) + int(work.left),
+            "y": int(rect.top) + int(work.top),
+            "width": width,
+            "height": height,
+            "maximized": bool(
+                placement.showCmd == SW_SHOWMAXIMIZED
+                or placement.flags & WPF_RESTORETOMAXIMIZED
+            ),
+        }
+
+    def _notify_geometry(self) -> None:
+        callback = self._on_geometry
+        if callback is None:
+            return
+        placement = self._window_placement()
+        if placement is None:
+            return
+        try:
+            callback(placement)
+        except Exception:
+            LOGGER.exception("Could not save the WebView2 window geometry")
+
     def _quit_window(self) -> None:
         if not self._hwnd:
             return
+        self._notify_geometry()
         self._available = False
         if self._controller and self._close_controller is not None:
             with contextlib.suppress(Exception):
@@ -813,10 +928,14 @@ class WebViewHost:
     def _handle_message(self, hwnd, message, wparam, lparam):
         u = self._user32
         if message == WM_CLOSE:
+            self._post("geometry")
             self._post("quit" if self._closing else "close-request")
             return 0
         if message == WM_SIZE:
             self._post("layout")
+            return 0
+        if message == WM_EXITSIZEMOVE:
+            self._post("geometry")
             return 0
         if message == WM_DPICHANGED:
             self._post("layout")

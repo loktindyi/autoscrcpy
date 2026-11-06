@@ -691,7 +691,7 @@ h2 {
 .workspace {
   display: grid;
   flex: 1;
-  grid-template-columns: 304px minmax(420px, 1fr) 392px;
+  grid-template-columns: 280px minmax(462px, 1fr) 350px;
   gap: 15px;
   min-height: 0;
 }
@@ -3465,6 +3465,31 @@ select:focus {
   );
 }
 
+/* Light-mode controls on accent fills: use a light knob and a softer
+   tinted connect button instead of the dark ink used by the shared
+   palette. The command/log panes above are intentionally not affected. */
+:root[data-appearance="light"] .switch::after {
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .28), 0 0 0 1px rgba(15, 23, 42, .08);
+}
+
+:root[data-appearance="light"] .switch[aria-checked="true"]::after {
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .34), 0 0 0 1px rgba(15, 23, 42, .06);
+}
+
+:root[data-appearance="light"] #connectDeviceButton {
+  border-color: color-mix(in srgb, var(--accent) 42%, transparent);
+  background: color-mix(in srgb, var(--accent) 16%, #ffffff);
+  color: color-mix(in srgb, var(--accent) 45%, var(--text));
+}
+
+:root[data-appearance="light"] #connectDeviceButton:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 58%, transparent);
+  background: color-mix(in srgb, var(--accent) 24%, #ffffff);
+  color: color-mix(in srgb, var(--accent) 58%, var(--text));
+}
+
 .theme-transition,
 .theme-transition *,
 .theme-transition *::before,
@@ -3482,10 +3507,6 @@ select:focus {
    -------------------------------------------------------------------------- */
 
 @media (max-width: 1440px) {
-  .workspace {
-    grid-template-columns: 288px minmax(390px, 1fr) 370px;
-  }
-
   .color-label {
     display: none;
   }
@@ -3499,40 +3520,6 @@ select:focus {
   }
 
   .heading-note {
-    display: none;
-  }
-}
-
-@media (max-width: 1180px) {
-  html {
-    height: auto;
-    overflow: auto;
-  }
-
-  body {
-    height: auto;
-    overflow: auto;
-  }
-
-  .app-shell {
-    height: auto;
-    min-height: calc(100vh / var(--ui-zoom));
-  }
-
-  .workspace {
-    grid-template-columns: 280px minmax(0, 1fr);
-    grid-template-rows: 700px 620px;
-  }
-
-  .console-panel {
-    grid-column: 1 / -1;
-  }
-
-  .device-panel {
-    max-height: 700px;
-  }
-
-  .topbar-status .save-indicator {
     display: none;
   }
 }
@@ -3746,6 +3733,10 @@ html.ui-compact .console-panel {
 
 html.ui-compact .device-panel {
   max-height: 700px;
+}
+
+html.ui-compact .topbar-status .save-indicator {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

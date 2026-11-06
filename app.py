@@ -42,7 +42,7 @@ import webview_host
 import win_tray
 
 APP_NAME = "AutoScrcpy"
-APP_VERSION = "2.2.0"
+APP_VERSION = "2.3.0"
 BASE_DIR = Path(__file__).resolve().parent
 UI_DIR = BASE_DIR / "ui"
 TRAY_ICON_PATH = BASE_DIR / "assets" / "autoscrcpy.ico"
@@ -349,6 +349,30 @@ def save_settings_atomic(path: Path, settings: dict[str, Any]) -> None:
         handle.flush()
         os.fsync(handle.fileno())
     os.replace(temp, path)
+
+
+def load_window_state(path: Path) -> dict[str, Any] | None:
+    """Read the remembered WebView2 window geometry, if it is still valid."""
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(raw, dict):
+        return None
+    result: dict[str, Any] = {}
+    for key in ("x", "y", "width", "height"):
+        value = raw.get(key)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None
+        number = int(value)
+        if key in {"width", "height"}:
+            if not 400 <= number <= 20_000:
+                return None
+        elif not -100_000 <= number <= 100_000:
+            return None
+        result[key] = number
+    result["maximized"] = bool(raw.get("maximized"))
+    return result
 
 
 def allocate_socket(port: int = 0) -> socket.socket:
@@ -912,6 +936,9 @@ class AutoScrcpyApp:
         self.profile_dir = config_dir / "browser-profile"
         self.requested_port = requested_port
         self.settings = load_settings(self.settings_file)
+        self.window_state_file = config_dir / "window-state.json"
+        self.window_state = load_window_state(self.window_state_file)
+        self.window_state_lock = threading.Lock()
         self.tools: dict[str, Any] = {}
         self.server: Any = None
         self.sock: socket.socket | None = None
@@ -1117,6 +1144,15 @@ class AutoScrcpyApp:
         else:
             await self.request_shutdown("已关闭窗口")
 
+    def _remember_window_geometry(self, placement: dict[str, Any]) -> None:
+        """Persist the WebView2 window geometry (called from its UI thread)."""
+        with self.window_state_lock:
+            if placement == self.window_state:
+                return
+            self.window_state = dict(placement)
+            with contextlib.suppress(OSError):
+                save_settings_atomic(self.window_state_file, self.window_state)
+
     def _open_webview_window(self) -> bool:
         available, info = webview_host.webview_available()
         self.webview_info = info
@@ -1130,6 +1166,8 @@ class AutoScrcpyApp:
             user_data_dir=self.config_dir / "webview-profile",
             on_close=self._window_close_from_host,
             appearance=resolve_appearance(self.settings.get("appearance")),
+            placement=self.window_state,
+            on_geometry=self._remember_window_geometry,
         )
         # Publish the backend before navigation starts so the first `hello`
         # already reports "webview" to the page.

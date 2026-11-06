@@ -72,6 +72,31 @@ class ScrcpyHelpParsingTests(unittest.TestCase):
         )
 
 
+class WindowStateTests(unittest.TestCase):
+    def test_roundtrip(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "window-state.json"
+            state = {
+                "x": 120,
+                "y": 80,
+                "width": 1480,
+                "height": 940,
+                "maximized": False,
+            }
+            app.save_settings_atomic(path, state)
+            self.assertEqual(app.load_window_state(path), state)
+
+    def test_invalid_values_are_ignored(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "window-state.json"
+            path.write_text('{"x": 0, "y": 0, "width": 10, "height": 10}')
+            self.assertIsNone(app.load_window_state(path))
+            path.write_text('{"x": "a", "y": 0, "width": 1000, "height": 700}')
+            self.assertIsNone(app.load_window_state(path))
+            path.write_text("not json")
+            self.assertIsNone(app.load_window_state(path))
+
+
 class SettingsTests(unittest.TestCase):
     def test_sanitize_bounds_and_unknown_values(self) -> None:
         raw = {

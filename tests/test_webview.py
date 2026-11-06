@@ -63,5 +63,27 @@ class WebViewHostStateTests(unittest.TestCase):
             self.assertFalse(host.running)
 
 
+    def test_host_accepts_saved_placement_before_start(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            seen: list[dict] = []
+            host = webview_host.WebViewHost(
+                "http://127.0.0.1:1/",
+                title="test",
+                icon_path=None,
+                user_data_dir=Path(directory) / "profile",
+                placement={
+                    "x": 80,
+                    "y": 60,
+                    "width": 1200,
+                    "height": 800,
+                    "maximized": True,
+                },
+                on_geometry=seen.append,
+            )
+            self.assertFalse(host.available)
+            host.stop(timeout=0.2)
+            self.assertEqual(seen, [])
+
+
 if __name__ == "__main__":
     unittest.main()
