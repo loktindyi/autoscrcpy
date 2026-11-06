@@ -42,28 +42,30 @@ git add -A
 if errorlevel 1 goto :fail
 
 git diff --cached --quiet
-if not errorlevel 1 (
-    echo.
-    echo 没有需要提交的更改，工作区是干净的。
-    goto :done
-)
+if not errorlevel 1 goto :no_changes
 
 echo.
 echo 将要提交的文件：
 git diff --cached --stat
 
 set "MSG=%~1"
-if not defined MSG (
-    echo.
-    set /p "MSG=请输入提交说明（直接回车自动生成）: "
-)
+if defined MSG goto :message_ready
+echo.
+set /p "MSG=请输入提交说明（直接回车自动生成）: "
+:message_ready
 if not defined MSG set "MSG=自动提交 %date% %time%"
 
 echo.
 echo [2/3] 提交...
 git commit -m "%MSG%"
 if errorlevel 1 goto :fail
+goto :push
 
+:no_changes
+echo.
+echo 没有需要提交的更改，检查是否有未推送的提交...
+
+:push
 set "BRANCH="
 for /f "delims=" %%b in ('git symbolic-ref --short HEAD 2^>nul') do set "BRANCH=%%b"
 if not defined BRANCH (
@@ -98,7 +100,7 @@ if errorlevel 1 (
 :success
 echo.
 echo ============================================
-echo   提交并推送成功
+echo   已同步到 GitHub
 echo ============================================
 echo   仓库: https://github.com/loktindyi/autoscrcpy
 echo.
