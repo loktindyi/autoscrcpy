@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""AutoScrcpy - a local, browser-based UI for scrcpy.
+"""AutoScrcpy - a local, native-window UI for scrcpy.
 
 The Python process is the backend.  It serves the editable files under ``ui/``
-and the WebSocket endpoint on the same loopback-only port, then opens the UI in
-a browser app window.  There is deliberately no framework or database: the
-front-end builds the scrcpy argv, the backend executes it without a shell.
+and the WebSocket endpoint on the same loopback-only port, then hosts the UI in
+a native WebView2 window (``webview_host.py``).  When WebView2 is unavailable it
+falls back to a chromeless Edge/Chrome app window.  There is deliberately no
+framework or database: the front-end builds the scrcpy argv, the backend
+executes it without a shell.
 """
 
 from __future__ import annotations
@@ -36,13 +38,16 @@ from websockets.asyncio.server import ServerConnection, serve
 from websockets.exceptions import ConnectionClosed
 from websockets.http11 import Headers, Request, Response
 
+import webview_host
 import win_tray
 
 APP_NAME = "AutoScrcpy"
-APP_VERSION = "1.9.0"
+APP_VERSION = "2.1.2"
 BASE_DIR = Path(__file__).resolve().parent
 UI_DIR = BASE_DIR / "ui"
 TRAY_ICON_PATH = BASE_DIR / "assets" / "autoscrcpy.ico"
+TRAY_ICON_DARK_PATH = BASE_DIR / "assets" / "tray-dark.ico"
+TRAY_ICON_LIGHT_PATH = BASE_DIR / "assets" / "tray-light.ico"
 HOST = "127.0.0.1"
 FIRST_CONNECT_TIMEOUT = 90.0
 RECONNECT_GRACE = 3.0
@@ -50,8 +55,25 @@ CONSOLE_RESTORE_DELAY = 0.4
 MAX_MESSAGE = 1_048_576
 MAX_LOG_LINE = 8_000
 CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-ORIGIN_THEMES = {"midnight", "ember", "paper", "terminal"}
+ACCENTS = {
+    "teal": "青碧",
+    "blue": "海蓝",
+    "indigo": "靛蓝",
+    "violet": "紫罗兰",
+    "rose": "玫瑰",
+    "amber": "琥珀",
+    "lime": "青柠",
+    "slate": "石墨",
+}
+APPEARANCES = {"light", "dark", "system"}
+LEGACY_THEMES = {
+    "midnight": "teal",
+    "ember": "amber",
+    "paper": "slate",
+    "terminal": "lime",
+}
 AFTER_START_ACTIONS = {"focus", "minimize", "tray"}
+WINDOW_BACKENDS = {"auto", "webview", "browser"}
 ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 OPTION_RE = re.compile(r"--[a-z0-9][a-z0-9-]*")
 ADDRESS_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._\-]*(?::\d{1,5})?$")
@@ -59,16 +81,19 @@ ADDRESS_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._\-]*(?::\d{1,5})?$")
 LOGGER = logging.getLogger("autoscrcpy")
 
 DEFAULT_SETTINGS: dict[str, Any] = {
-    "version": 1,
+    "version": 2,
     "updatedAt": 0,
-    "theme": "midnight",
+    "accent": "teal",
+    "appearance": "system",
     "uiScale": "system",
     "afterStart": "focus",
     "autoOpenConsole": True,
+    "keepInBackground": True,
     "selectedDevice": "",
     "wirelessAddress": "",
     "collapsedSections": ["advanced", "record"],
     "options": {},
+    "extraArgs": "",
     "profiles": [],
     "lastProfile": None,
 }
@@ -76,14 +101,17 @@ DEFAULT_SETTINGS: dict[str, Any] = {
 SETTINGS_KEYS = {
     "version",
     "updatedAt",
-    "theme",
+    "accent",
+    "appearance",
     "uiScale",
     "afterStart",
     "autoOpenConsole",
+    "keepInBackground",
     "selectedDevice",
     "wirelessAddress",
     "collapsedSections",
     "options",
+    "extraArgs",
     "profiles",
     "lastProfile",
 }
@@ -229,6 +257,9 @@ def sanitize_profile(raw: Any, *, last: bool = False) -> dict[str, Any] | None:
         ),
         "options": sanitize_options(raw.get("options")),
         "argv": argv,
+        "extraArgs": (
+            raw["extraArgs"][:4000] if isinstance(raw.get("extraArgs"), str) else ""
+        ),
     }
 
 
@@ -254,9 +285,12 @@ def sanitize_settings(raw: Any) -> dict[str, Any]:
 
     for key in SETTINGS_KEYS & raw.keys():
         value = raw[key]
-        if key == "theme":
-            if isinstance(value, str) and value in ORIGIN_THEMES:
-                result["theme"] = value
+        if key == "accent":
+            if isinstance(value, str) and value in ACCENTS:
+                result["accent"] = value
+        elif key == "appearance":
+            if isinstance(value, str) and value in APPEARANCES:
+                result["appearance"] = value
         elif key == "uiScale":
             if value == "system":
                 result["uiScale"] = "system"
@@ -270,11 +304,17 @@ def sanitize_settings(raw: Any) -> dict[str, Any]:
         elif key == "autoOpenConsole":
             if isinstance(value, bool):
                 result["autoOpenConsole"] = value
+        elif key == "keepInBackground":
+            if isinstance(value, bool):
+                result["keepInBackground"] = value
         elif key == "updatedAt":
             if isinstance(value, (int, float)) and not isinstance(value, bool):
                 result["updatedAt"] = max(0, min(int(value), 9_999_999_999_999))
         elif key == "options":
             result["options"] = sanitize_options(value)
+        elif key == "extraArgs":
+            if isinstance(value, str):
+                result["extraArgs"] = value[:4000]
         elif key == "profiles":
             result["profiles"] = sanitize_profiles(value)
         elif key == "lastProfile":
@@ -291,6 +331,13 @@ def sanitize_settings(raw: Any) -> dict[str, Any]:
         elif key in {"selectedDevice", "wirelessAddress"}:
             if isinstance(value, str):
                 result[key] = value[:300]
+
+    # 1.x stored four named themes; map them onto the new accent palette.
+    legacy_theme = raw.get("theme")
+    if "accent" not in raw and isinstance(legacy_theme, str):
+        mapped = LEGACY_THEMES.get(legacy_theme)
+        if mapped:
+            result["accent"] = mapped
     return result
 
 
@@ -358,6 +405,33 @@ def get_system_scale() -> float | None:
     return round(max(0.5, min(4.0, dpi / 96.0)), 4)
 
 
+def system_appearance() -> str:
+    """Return Windows' app theme: ``light`` or ``dark``."""
+    if os.name != "nt":
+        return "dark"
+    try:
+        import winreg
+
+        path = (
+            r"Software\Microsoft\Windows\CurrentVersion"
+            r"\Themes\Personalize"
+        )
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, path) as key:
+            value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
+        return "light" if int(value) else "dark"
+    except Exception:
+        return "dark"
+
+
+def resolve_appearance(value: Any) -> str:
+    """Resolve a stored ``appearance`` setting to ``light`` or ``dark``."""
+    if value == "light":
+        return "light"
+    if value == "dark":
+        return "dark"
+    return system_appearance()
+
+
 def find_browser() -> str | None:
     override = os.environ.get("AUTOSCRCPY_BROWSER")
     if override and Path(override).is_file():
@@ -403,9 +477,14 @@ def open_ui_window(
             opened = bool(webbrowser.open(url, new=1))
         return ("default-browser" if opened else "failed"), None
 
+    # Chromium interprets --window-size in DIPs; this process is DPI aware, so
+    # convert the physical target size back to DIPs to keep the window sane.
+    scale = get_system_scale() or 1.0
     screen_w, screen_h = screen_size()
     width = clamp(screen_w - 80, 980, 1480) if screen_w else 1480
     height = clamp(screen_h - 110, 680, 940) if screen_h else 940
+    width = max(640, int(width / scale))
+    height = max(480, int(height / scale))
     with contextlib.suppress(OSError):
         profile_dir.mkdir(parents=True, exist_ok=True)
     args = [
@@ -835,6 +914,7 @@ class AutoScrcpyApp:
         self.settings_lock = asyncio.Lock()
         self.refresh_lock = asyncio.Lock()
         self.shutdown_lock = asyncio.Lock()
+        self.window_lock = asyncio.Lock()
         self.exit_event = asyncio.Event()
         self.connected_event = asyncio.Event()
         self.shutting_down = False
@@ -845,6 +925,10 @@ class AutoScrcpyApp:
         self.runner = ScrcpyRunner(self)
         self.started_at = time.time()
         self.browser_process: subprocess.Popen[bytes] | None = None
+        self.webview: webview_host.WebViewHost | None = None
+        self.window_backend = "none"
+        self.window_backend_pref = "auto"
+        self.webview_info = ""
         self.console_detached = False
         self.tray: win_tray.TrayIcon | None = None
         self.tray_enabled = True
@@ -952,6 +1036,10 @@ class AutoScrcpyApp:
         if watch and not watch.done():
             with contextlib.suppress(Exception):
                 await asyncio.wait_for(asyncio.shield(watch), 3)
+        if self.webview is not None:
+            with contextlib.suppress(Exception):
+                await asyncio.to_thread(self.webview.stop)
+            self.webview = None
         if self.tray is not None:
             with contextlib.suppress(Exception):
                 await asyncio.to_thread(self.tray.stop)
@@ -966,7 +1054,8 @@ class AutoScrcpyApp:
         tray: win_tray.TrayIcon | None = None
         try:
             tray = win_tray.TrayIcon(
-                icon_path=TRAY_ICON_PATH,
+                icon_path=TRAY_ICON_DARK_PATH,
+                light_icon_path=TRAY_ICON_LIGHT_PATH,
                 tooltip=f"{APP_NAME} · 镜像控制台",
                 on_open=lambda: self._tray_call(self.show_console),
                 on_stop=lambda: self._tray_call(self.stop_from_tray),
@@ -1000,23 +1089,102 @@ class AutoScrcpyApp:
             self.browser_process = process
         return target
 
+    def _window_close_from_host(self) -> None:
+        """Called on the WebView2 thread when the user closes the window."""
+        loop = self.loop
+        if loop is None or loop.is_closed():
+            return
+        loop.call_soon_threadsafe(
+            lambda: asyncio.create_task(self._handle_window_close())
+        )
+
+    async def _handle_window_close(self) -> None:
+        if self.shutting_down or self.closing:
+            return
+        if self.settings.get("keepInBackground", True):
+            # Closing the window means "keep running in the tray"; stop the
+            # WebView front-end so it no longer consumes memory/CPU.
+            await self._park_console_in_tray()
+        else:
+            await self.request_shutdown("已关闭窗口")
+
+    def _open_webview_window(self) -> bool:
+        available, info = webview_host.webview_available()
+        self.webview_info = info
+        if not available:
+            LOGGER.info("WebView2 unavailable: %s", info)
+            return False
+        host = webview_host.WebViewHost(
+            self.url,
+            title=f"{APP_NAME} · 镜像控制台",
+            icon_path=TRAY_ICON_PATH,
+            user_data_dir=self.config_dir / "webview-profile",
+            on_close=self._window_close_from_host,
+            appearance=resolve_appearance(self.settings.get("appearance")),
+        )
+        # Publish the backend before navigation starts so the first `hello`
+        # already reports "webview" to the page.
+        self.webview = host
+        self.window_backend = "webview"
+        try:
+            opened = host.start()
+        except Exception:
+            LOGGER.exception("Could not start the WebView2 window")
+            opened = False
+        if not opened:
+            LOGGER.warning("WebView2 window failed: %s", host.error)
+            host.stop(timeout=2.0)
+            self.webview = None
+            self.window_backend = "none"
+            return False
+        LOGGER.info("Opened UI with %s", info)
+        return True
+
+    async def open_main_window(self) -> str:
+        """Prefer the in-process WebView2 window, fall back to a browser."""
+        if self.window_backend_pref != "browser":
+            opened = await asyncio.to_thread(self._open_webview_window)
+            if opened:
+                return "webview"
+        target = await asyncio.to_thread(self.open_console_window)
+        self.window_backend = "browser" if target not in {"disabled", "failed"} else "none"
+        LOGGER.info("Opened UI via %s", target)
+        if target == "failed":
+            LOGGER.error("Could not open a window for %s", self.url)
+        return target
+
     async def show_console(self) -> None:
         if self.shutting_down or self.closing:
             return
-        hwnd = await asyncio.to_thread(win_tray.find_console_window)
-        if hwnd:
-            await asyncio.to_thread(win_tray.restore_window, hwnd)
-            return
-        target = await asyncio.to_thread(self.open_console_window)
-        LOGGER.info("Reopened console window via %s", target)
-        if target == "failed":
-            LOGGER.error("Could not reopen the console window")
-            return
-        if target != "disabled":
-            # A browser started by a background process may only flash in the
-            # taskbar instead of becoming visible; wait for its window and
-            # explicitly restore/focus it.
-            self._spawn(self._focus_reopened_console())
+        async with self.window_lock:
+            if self.shutting_down or self.closing:
+                return
+            if self.webview is not None and self.webview.running:
+                self.console_detached = False
+                self.webview.show_restore()
+                return
+            if self.window_backend == "webview":
+                # The WebView2 window was stopped when it was parked in the
+                # tray; recreate it now.
+                opened = await asyncio.to_thread(self._open_webview_window)
+                if opened and self.webview is not None:
+                    self.console_detached = False
+                    self.webview.show_restore()
+                    return
+            hwnd = await asyncio.to_thread(win_tray.find_console_window)
+            if hwnd:
+                await asyncio.to_thread(win_tray.restore_window, hwnd)
+                return
+            target = await asyncio.to_thread(self.open_console_window)
+            LOGGER.info("Reopened console window via %s", target)
+            if target == "failed":
+                LOGGER.error("Could not reopen the console window")
+                return
+            if target != "disabled":
+                # A browser started by a background process may only flash in
+                # the taskbar instead of becoming visible; wait for its window
+                # and explicitly restore/focus it.
+                self._spawn(self._focus_reopened_console())
 
     async def _focus_reopened_console(self, timeout: float = 12.0) -> None:
         process = self.browser_process
@@ -1043,13 +1211,35 @@ class AutoScrcpyApp:
             await self.runner.stop()
 
     async def _minimize_console_window(self) -> None:
+        if self.webview is not None and self.webview.running:
+            self.webview.minimize()
+            return
         hwnd = await asyncio.to_thread(win_tray.find_console_window)
         if hwnd:
             await asyncio.to_thread(win_tray.minimize_window, hwnd)
 
     async def _park_console_in_tray(self) -> None:
+        async with self.window_lock:
+            await self._park_console_in_tray_locked()
+
+    async def _park_console_in_tray_locked(self) -> None:
         if not self.tray_available:
             await self._minimize_console_window()
+            return
+        if self.webview is not None and self.webview.running:
+            # Stop the whole WebView2 front-end (renderer + window) so a
+            # tray-parked console costs only the small Python backend.  The
+            # page is recreated on demand by show_console().
+            self.console_detached = True
+            host = self.webview
+            self.webview = None
+            LOGGER.info("Stopping the WebView2 front-end (tray)")
+            await asyncio.to_thread(host.stop)
+            if self.tray is not None:
+                self.tray.notify(
+                    f"{APP_NAME} 正在后台运行",
+                    "控制台已关闭，双击托盘图标可重新打开。",
+                )
             return
         # Set the flag before closing: the WebSocket disconnect that follows
         # must not trigger the "front-end went away" shutdown.
@@ -1082,6 +1272,11 @@ class AutoScrcpyApp:
         # A restart starts a new run right after run_finished; do not flash the
         # console open just to have the new run minimize/park it again.
         if self.closing or self.shutting_down or self.runner.running:
+            return
+        if self.webview is not None and self.webview.running:
+            if self.console_detached or self.webview.minimized:
+                self.console_detached = False
+                self.webview.show_restore()
             return
         if self.console_detached:
             await self.show_console()
@@ -1128,6 +1323,16 @@ class AutoScrcpyApp:
 
     def _schedule_disconnect_shutdown(self) -> None:
         if self.shutting_down or self.console_detached:
+            return
+        if (
+            self.window_backend == "browser"
+            and self.settings.get("keepInBackground", True)
+        ):
+            # The browser window cannot intercept its close button.  Honour
+            # "keep in background" by keeping the backend alive and reopening
+            # the window from the tray.
+            self.console_detached = True
+            LOGGER.info("Browser window went away; keeping the backend running")
             return
         if self.disconnect_task and not self.disconnect_task.done():
             return
@@ -1305,6 +1510,8 @@ class AutoScrcpyApp:
                 "systemScale": get_system_scale(),
                 "reconnectGrace": RECONNECT_GRACE,
                 "trayAvailable": self.tray_available,
+                "windowBackend": self.window_backend,
+                "webviewInfo": self.webview_info,
                 "startedAt": self.started_at * 1000,
             },
             target=websocket,
@@ -1358,12 +1565,27 @@ class AutoScrcpyApp:
                 self._spawn(self._after_start(message.get("afterStart")))
         elif kind == "stop":
             await self.runner.stop()
+        elif kind == "app_action":
+            await self._handle_app_action(message.get("action"))
         elif kind == "save_settings":
             await self._save_settings(message.get("settings"))
         elif kind == "quit":
             await self.request_shutdown("已从界面退出")
         else:
             await self.send({"type": "error", "message": f"未知命令：{kind}"})
+
+    async def _handle_app_action(self, action: Any) -> None:
+        """Window-level actions requested by the top-right button."""
+        if action == "quit":
+            await self.request_shutdown("已从界面退出")
+        elif action == "park":
+            await self._park_console_in_tray()
+        elif action == "minimize":
+            await self._minimize_console_window()
+        else:
+            await self.send(
+                {"type": "error", "message": f"未知的窗口操作：{action}"}
+            )
 
     # -- adb operations ---------------------------------------------------
 
@@ -1531,6 +1753,10 @@ class AutoScrcpyApp:
         )
         async with self.settings_lock:
             self.settings = settings
+            if self.webview is not None:
+                self.webview.set_appearance(
+                    resolve_appearance(settings.get("appearance"))
+                )
             try:
                 await asyncio.to_thread(
                     save_settings_atomic, self.settings_file, settings
@@ -1587,7 +1813,7 @@ def setup_logging(config_dir: Path, verbose: bool = False) -> Path:
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="AutoScrcpy",
-        description="A local browser UI for scrcpy.",
+        description="A local WebView2/browser UI for scrcpy.",
     )
     parser.add_argument(
         "--no-browser",
@@ -1598,6 +1824,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--no-tray",
         action="store_true",
         help="Do not create the notification-area icon.",
+    )
+    parser.add_argument(
+        "--window-backend",
+        choices=sorted(WINDOW_BACKENDS),
+        default="auto",
+        help="Window backend: auto (WebView2 first), webview, or browser.",
     )
     parser.add_argument(
         "--port",
@@ -1634,16 +1866,16 @@ async def async_main(args: argparse.Namespace) -> int:
 
     app = AutoScrcpyApp(config_dir, requested_port=args.port)
     app.tray_enabled = not args.no_tray
+    app.window_backend_pref = args.window_backend
     await app.start()
     app.start_tray()
     if args.print_url:
         print(app.url, flush=True)
 
     if not args.no_browser:
-        target = app.open_console_window()
-        LOGGER.info("Opened UI via %s", target)
+        target = await app.open_main_window()
         if target == "failed":
-            LOGGER.error("Could not open a browser for %s", app.url)
+            LOGGER.error("Could not open a window for %s", app.url)
 
     loop = asyncio.get_running_loop()
 
@@ -1671,6 +1903,10 @@ async def async_main(args: argparse.Namespace) -> int:
 
 def main() -> int:
     if os.name == "nt":
+        with contextlib.suppress(Exception):
+            ctypes.windll.shcore.SetProcessDpiAwareness(2)
+        with contextlib.suppress(Exception):
+            ctypes.windll.user32.SetProcessDpiAwarenessContext(-4)
         with contextlib.suppress(Exception):
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
                 "AutoScrcpy.UI"

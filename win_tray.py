@@ -30,11 +30,21 @@ CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 WM_NULL = 0x0000
 WM_CLOSE = 0x0010
 WM_DESTROY = 0x0002
+WM_SETTINGCHANGE = 0x001A
+WM_THEMECHANGED = 0x031A
+WM_DPICHANGED = 0x02E0
+WM_TIMER = 0x0113
 WM_APP = 0x8000
 WM_TRAY = WM_APP + 1
 WM_LBUTTONUP = 0x0202
 WM_LBUTTONDBLCLK = 0x0203
 WM_RBUTTONUP = 0x0205
+
+# Explorer broadcasts the registered "TaskbarCreated" message every time it
+# (re)creates the taskbar; the notification-area icon has to be added again.
+TASKBAR_RESTORE_TIMER = 1
+TASKBAR_RESTORE_INTERVAL_MS = 500
+TASKBAR_RESTORE_MAX_ATTEMPTS = 24
 
 GW_OWNER = 4
 
@@ -61,6 +71,9 @@ TPM_NONOTIFY = 0x0080
 
 SW_SHOWMINNOACTIVE = 7
 SW_RESTORE = 9
+
+SM_CXSMICON = 49
+SM_CYSMICON = 50
 
 MENU_OPEN = 1
 MENU_STOP = 2
@@ -274,6 +287,19 @@ def _bind_functions() -> None:
         wintypes.BOOL,
     ]
     u.AttachThreadInput.restype = wintypes.BOOL
+    u.GetSystemMetrics.argtypes = [ctypes.c_int]
+    u.GetSystemMetrics.restype = ctypes.c_int
+    u.RegisterWindowMessageW.argtypes = [wintypes.LPCWSTR]
+    u.RegisterWindowMessageW.restype = wintypes.UINT
+    u.SetTimer.argtypes = [
+        wintypes.HWND,
+        wintypes.UINT,
+        wintypes.UINT,
+        ctypes.c_void_p,
+    ]
+    u.SetTimer.restype = wintypes.UINT
+    u.KillTimer.argtypes = [wintypes.HWND, wintypes.UINT]
+    u.KillTimer.restype = wintypes.BOOL
 
     k = _kernel32
     k.GetModuleHandleW.argtypes = [wintypes.LPCWSTR]
@@ -484,6 +510,29 @@ def close_console_window(process: "subprocess.Popen[bytes] | None" = None) -> bo
 # -- Tray icon --------------------------------------------------------------
 
 
+def system_uses_light_theme() -> bool:
+    """Return whether the Windows taskbar currently uses the light theme."""
+    if not IS_WINDOWS:
+        return False
+    try:
+        import winreg
+
+        path = (
+            r"Software\Microsoft\Windows\CurrentVersion"
+            r"\Themes\Personalize"
+        )
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, path) as key:
+            value, _ = winreg.QueryValueEx(key, "SystemUsesLightTheme")
+        return bool(int(value))
+    except Exception:
+        return False
+
+
+def tray_theme() -> str:
+    """Return ``light`` or ``dark`` for the notification area."""
+    return "light" if system_uses_light_theme() else "dark"
+
+
 class TrayIcon:
     """A native notification-area icon with a small context menu."""
 
@@ -496,8 +545,13 @@ class TrayIcon:
         on_quit: Callable[[], None],
         on_stop: Callable[[], None] | None = None,
         is_running: Callable[[], bool] | None = None,
+        light_icon_path: Path | None = None,
     ) -> None:
-        self._icon_path = Path(icon_path)
+        dark_path = Path(icon_path)
+        self._icon_paths = {
+            "dark": dark_path,
+            "light": Path(light_icon_path) if light_icon_path else dark_path,
+        }
         self._tooltip = tooltip[:127]
         self._on_open = on_open
         self._on_quit = on_quit
@@ -510,6 +564,9 @@ class TrayIcon:
         self._nid: NOTIFYICONDATAW | None = None
         self._wndproc: WNDPROC | None = None
         self._class_name = f"AutoScrcpyTray_{os.getpid()}_{id(self):x}"
+        self._theme = tray_theme()
+        self._taskbar_created = 0
+        self._restore_attempts = 0
         self.available = False
 
     # -- lifecycle ---------------------------------------------------------
@@ -620,18 +677,33 @@ class TrayIcon:
         if not self._hwnd:
             raise OSError(ctypes.get_last_error(), "CreateWindowExW failed")
 
-        icon = _user32.LoadImageW(
-            None,
-            str(self._icon_path),
-            IMAGE_ICON,
-            0,
-            0,
-            LR_LOADFROMFILE | LR_DEFAULTSIZE,
+        # The message is identical for every process; Explorer broadcasts it
+        # after it restarts, and the notification-area icon must be re-added.
+        self._taskbar_created = int(
+            _user32.RegisterWindowMessageW("TaskbarCreated") or 0
         )
-        if not icon:
-            icon = _user32.LoadIconW(None, ctypes.c_void_p(IDI_APPLICATION))
-        self._hicon = int(icon) if icon else None
 
+        added = False
+        # Explorer may not have created its notification area yet when the app
+        # is started at logon; retry briefly before giving up.
+        for _ in range(4):
+            if self._add_icon():
+                added = True
+                break
+            time.sleep(0.25)
+        if not added:
+            raise OSError(ctypes.get_last_error(), "Shell_NotifyIconW failed")
+        LOGGER.info(
+            "Notification-area icon ready (%s theme)", self._theme
+        )
+
+    def _icon_data(self) -> tuple[NOTIFYICONDATAW, int] | None:
+        """Build the notification data for the current theme."""
+        if not self._hwnd:
+            return None
+        icon = self._load_icon()
+        if not icon:
+            return None
         data = NOTIFYICONDATAW()
         data.cbSize = ctypes.sizeof(NOTIFYICONDATAW)
         data.hWnd = self._hwnd
@@ -640,18 +712,123 @@ class TrayIcon:
         data.uCallbackMessage = WM_TRAY
         data.hIcon = icon
         data.szTip = self._tooltip
-        added = False
-        # Explorer may not have created its notification area yet when the app
-        # is started at logon; retry briefly before giving up.
-        for _ in range(4):
-            if _shell32.Shell_NotifyIconW(NIM_ADD, ctypes.byref(data)):
-                added = True
-                break
-            time.sleep(0.25)
-        if not added:
-            raise OSError(ctypes.get_last_error(), "Shell_NotifyIconW failed")
+        return data, int(icon)
+
+    def _register_icon(self, flag: int = NIM_ADD) -> bool:
+        """Add (or update) the notification-area icon."""
+        prepared = self._icon_data()
+        if prepared is None:
+            return False
+        data, icon = prepared
+        if not _shell32.Shell_NotifyIconW(flag, ctypes.byref(data)):
+            with contextlib.suppress(Exception):
+                _user32.DestroyIcon(icon)
+            return False
+        previous = self._hicon
+        self._hicon = icon
         self._nid = data
-        LOGGER.info("Notification-area icon ready")
+        if previous and previous != icon:
+            with contextlib.suppress(Exception):
+                _user32.DestroyIcon(previous)
+        return True
+
+    def _add_icon(self) -> bool:
+        return self._register_icon(NIM_ADD)
+
+    def _restore_taskbar_icon(self) -> None:
+        """Re-add the icon after Explorer recreated the taskbar.
+
+        ``NIM_ADD`` is the normal path.  If the shell still remembers the
+        icon (``NIM_ADD`` fails with ``E_FAIL``), ``NIM_MODIFY`` refreshes it
+        instead.  Until the new notification area accepts registrations both
+        calls fail, so a timer retries without blocking the message loop.
+        """
+        if not IS_WINDOWS or not self._hwnd:
+            return
+        self._theme = tray_theme()
+        if self._register_icon(NIM_ADD) or self._register_icon(NIM_MODIFY):
+            self._restore_attempts = 0
+            self._kill_restore_timer()
+            LOGGER.info(
+                "Notification-area icon restored after an Explorer restart"
+            )
+            return
+        self._restore_attempts += 1
+        if self._restore_attempts >= TASKBAR_RESTORE_MAX_ATTEMPTS:
+            self._restore_attempts = 0
+            self._kill_restore_timer()
+            LOGGER.warning(
+                "Could not restore the notification-area icon after "
+                "Explorer restarted"
+            )
+            return
+        if not _user32.SetTimer(
+            self._hwnd,
+            TASKBAR_RESTORE_TIMER,
+            TASKBAR_RESTORE_INTERVAL_MS,
+            None,
+        ):
+            LOGGER.warning("SetTimer failed while restoring the tray icon")
+
+    def _kill_restore_timer(self) -> None:
+        if self._hwnd:
+            with contextlib.suppress(Exception):
+                _user32.KillTimer(self._hwnd, TASKBAR_RESTORE_TIMER)
+
+    def _icon_for_theme(self, theme: str | None = None) -> Path:
+        key = theme or self._theme or tray_theme()
+        path = self._icon_paths.get(key)
+        if path is not None and path.is_file():
+            return path
+        return self._icon_paths["dark"]
+
+    def _load_icon(self) -> int:
+        size_x = _user32.GetSystemMetrics(SM_CXSMICON) or 16
+        size_y = _user32.GetSystemMetrics(SM_CYSMICON) or 16
+        icon = _user32.LoadImageW(
+            None,
+            str(self._icon_for_theme()),
+            IMAGE_ICON,
+            size_x,
+            size_y,
+            LR_LOADFROMFILE,
+        )
+        if not icon:
+            icon = _user32.LoadIconW(None, ctypes.c_void_p(IDI_APPLICATION))
+        return int(icon) if icon else 0
+
+    def _refresh_icon(self) -> bool:
+        """Reload the tray bitmap for the current Windows light/dark theme."""
+        if not IS_WINDOWS or self._hwnd == 0:
+            return False
+        theme = tray_theme()
+        self._theme = theme
+        icon = self._load_icon()
+        if not icon:
+            return False
+        if self._nid is None:
+            return False
+        data = NOTIFYICONDATAW()
+        data.cbSize = ctypes.sizeof(NOTIFYICONDATAW)
+        data.hWnd = self._hwnd
+        data.uID = 1
+        data.uFlags = NIF_ICON
+        data.hIcon = icon
+        updated = bool(
+            _shell32.Shell_NotifyIconW(NIM_MODIFY, ctypes.byref(data))
+        )
+        if not updated:
+            with contextlib.suppress(Exception):
+                _user32.DestroyIcon(icon)
+            return False
+        previous = self._hicon
+        self._hicon = icon
+        self._nid.hIcon = icon
+        if previous:
+            with contextlib.suppress(Exception):
+                _user32.DestroyIcon(previous)
+        LOGGER.info("Tray icon switched to the %s theme", theme)
+        return True
 
     def _message_loop(self) -> None:
         message = MSG()
@@ -667,6 +844,7 @@ class TrayIcon:
     def _teardown(self) -> None:
         if not IS_WINDOWS:
             return
+        self._kill_restore_timer()
         if self._nid is not None:
             with contextlib.suppress(Exception):
                 _shell32.Shell_NotifyIconW(NIM_DELETE, ctypes.byref(self._nid))
@@ -695,6 +873,22 @@ class TrayIcon:
                 self._invoke(self._on_open)
             elif event == WM_RBUTTONUP:
                 self._show_menu()
+            return 0
+        if self._taskbar_created and message == self._taskbar_created:
+            # Explorer was restarted: the shell forgot every notification icon.
+            self._restore_taskbar_icon()
+            return 0
+        if message == WM_TIMER and wparam == TASKBAR_RESTORE_TIMER:
+            self._restore_taskbar_icon()
+            return 0
+        if message in (WM_SETTINGCHANGE, WM_THEMECHANGED):
+            # Windows switched between light and dark taskbar; swap the
+            # monochrome bitmap without recreating the tray icon.
+            self._refresh_icon()
+            return 0
+        if message == WM_DPICHANGED:
+            # SM_CXSMICON may have changed; reload the matching ICO size.
+            self._refresh_icon()
             return 0
         if message == WM_CLOSE:
             _user32.DestroyWindow(hwnd)

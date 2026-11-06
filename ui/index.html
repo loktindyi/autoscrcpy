@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="zh-CN" data-accent="teal" data-appearance="dark">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#080a0f">
+  <meta http-equiv="Cache-Control" content="no-store">
+  <title>AutoScrcpy · 镜像控制台</title>
+  <script src="assets/theme-init.js"></script>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/app.css">
+</head>
+
+<body>
+  <svg class="svg-sprite" aria-hidden="true">
+    <defs>
+      <symbol id="i-logo" viewBox="0 0 24 24">
+        <rect x="4" y="2.75" width="12.5" height="18.5" rx="3.1"></rect>
+        <path d="M8.2 6.4h4.1M8.2 17.6h4.1"></path>
+        <path d="M18.7 8.1c1.2 1.2 1.8 2.7 1.8 4.4 0 1.6-.6 3.1-1.8 4.3"></path>
+        <path d="M21 5.8c1.8 1.8 2.7 4.1 2.7 6.7S22.8 17.4 21 19.2" opacity=".52"></path>
+      </symbol>
+      <symbol id="i-monitor" viewBox="0 0 24 24">
+        <rect x="2.75" y="4" width="18.5" height="12.5" rx="2.2"></rect>
+        <path d="M8.5 20h7M12 16.5V20"></path>
+      </symbol>
+      <symbol id="i-device" viewBox="0 0 24 24">
+        <rect x="6.5" y="2.75" width="11" height="18.5" rx="2.6"></rect>
+        <path d="M10 18.3h4"></path>
+      </symbol>
+      <symbol id="i-volume" viewBox="0 0 24 24">
+        <path d="M4 9.7v4.6h3.2l4.3 3.4V6.3L7.2 9.7H4Z"></path>
+        <path d="M15 9a4.2 4.2 0 0 1 0 6M17.7 6.4a7.8 7.8 0 0 1 0 11.2"></path>
+      </symbol>
+      <symbol id="i-camera" viewBox="0 0 24 24">
+        <path
+          d="M3.25 8.4A2.4 2.4 0 0 1 5.65 6h2.1l1.35-2h5.8l1.35 2h2.1a2.4 2.4 0 0 1 2.4 2.4v8.2a2.4 2.4 0 0 1-2.4 2.4H5.65a2.4 2.4 0 0 1-2.4-2.4V8.4Z">
+        </path>
+        <circle cx="12" cy="12.5" r="3.7"></circle>
+      </symbol>
+      <symbol id="i-mouse" viewBox="0 0 24 24">
+        <rect x="6.2" y="2.8" width="11.6" height="18.4" rx="5.8"></rect>
+        <path d="M12 6.4v4.1"></path>
+      </symbol>
+      <symbol id="i-record" viewBox="0 0 24 24">
+        <rect x="2.8" y="5.5" width="14.2" height="13" rx="2.4"></rect>
+        <circle cx="9.9" cy="12" r="3"></circle>
+        <path d="m17 10 4.2-2.1v8.2L17 14"></path>
+      </symbol>
+      <symbol id="i-sliders" viewBox="0 0 24 24">
+        <path d="M4 7h8M16 7h4M4 17h4M12 17h8"></path>
+        <circle cx="14" cy="7" r="2"></circle>
+        <circle cx="10" cy="17" r="2"></circle>
+      </symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24">
+        <path d="M20.1 7.4v4.4h-4.4"></path>
+        <path d="M19 11.8a7.3 7.3 0 1 0-1.4 5.3"></path>
+      </symbol>
+      <symbol id="i-plug" viewBox="0 0 24 24">
+        <path d="M8.2 12.2 5 15.4a2.8 2.8 0 0 0 4 4l3.2-3.2M12.2 8.2 15.4 5a2.8 2.8 0 0 0-4-4l-3.2 3.2"></path>
+        <path d="m8.8 15.2 6.4-6.4M4 4l4.8 4.8M15.2 15.2 20 20"></path>
+      </symbol>
+      <symbol id="i-terminal" viewBox="0 0 24 24">
+        <rect x="2.8" y="3.8" width="18.4" height="16.4" rx="2.4"></rect>
+        <path d="m7 8 4 4-4 4M12.8 16h4.2"></path>
+      </symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24">
+        <rect x="8.2" y="8.2" width="12" height="12" rx="2"></rect>
+        <path d="M16 8.2V5.8a2 2 0 0 0-2-2H5.8a2 2 0 0 0-2 2v8.2a2 2 0 0 0 2 2h2.4"></path>
+      </symbol>
+      <symbol id="i-play" viewBox="0 0 24 24">
+        <path d="M7.2 4.6 19 12 7.2 19.4V4.6Z"></path>
+      </symbol>
+      <symbol id="i-stop" viewBox="0 0 24 24">
+        <rect x="5.8" y="5.8" width="12.4" height="12.4" rx="2"></rect>
+      </symbol>
+      <symbol id="i-restart" viewBox="0 0 24 24">
+        <path d="M20.1 11.2a8.2 8.2 0 1 0-2.3 5.7"></path>
+        <path d="M20.1 4.8v6.4h-6.4"></path>
+      </symbol>
+      <symbol id="i-info" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9.2"></circle>
+        <path d="M12 10.7v5.4M12 7.5h.01"></path>
+      </symbol>
+      <symbol id="i-search" viewBox="0 0 24 24">
+        <circle cx="10.8" cy="10.8" r="6.8"></circle>
+        <path d="m16 16 4.5 4.5"></path>
+      </symbol>
+      <symbol id="i-zoom" viewBox="0 0 24 24">
+        <circle cx="10.6" cy="10.6" r="6.9"></circle>
+        <path d="m15.7 15.7 4.5 4.5M7.8 10.6h5.6M10.6 7.8v5.6"></path>
+      </symbol>
+      <symbol id="i-reset" viewBox="0 0 24 24">
+        <path d="M4.2 7.7v4.4h4.4"></path>
+        <path d="M5.2 12.1A7.2 7.2 0 1 0 6.7 7"></path>
+      </symbol>
+      <symbol id="i-wifi" viewBox="0 0 24 24">
+        <path d="M3.2 9.2a13.7 13.7 0 0 1 17.6 0M6.1 12.6a9.2 9.2 0 0 1 11.8 0M9.1 16a4.7 4.7 0 0 1 5.8 0"></path>
+        <circle cx="12" cy="19.1" r="1"></circle>
+      </symbol>
+      <symbol id="i-usb" viewBox="0 0 24 24">
+        <path d="M12 3.2v14.2M12 7.3l4.2 2.1M12 10.5 7.8 12.6"></path>
+        <circle cx="12" cy="2.8" r="1.2"></circle>
+        <circle cx="16.8" cy="10" r="1.3"></circle>
+        <rect x="6.2" y="12.2" width="3.2" height="3.2" rx=".7"></rect>
+        <path d="M12 17.4 9.8 20h4.4L12 17.4Z"></path>
+      </symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24">
+        <path d="m7 9.5 5 5 5-5"></path>
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 24 24">
+        <path d="m4.8 12.4 4.6 4.5L19.3 7"></path>
+      </symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24">
+        <path d="M12 3.4 22 20.2H2L12 3.4Z"></path>
+        <path d="M12 9v4.7M12 17.2h.01"></path>
+      </symbol>
+      <symbol id="i-close" viewBox="0 0 24 24">
+        <path d="m6 6 12 12M18 6 6 18"></path>
+      </symbol>
+      <symbol id="i-download" viewBox="0 0 24 24">
+        <path d="M12 3.4v11M7.6 10.4 12 14.8l4.4-4.4M4.2 17.1v2.1c0 .8.6 1.4 1.4 1.4h12.8c.8 0 1.4-.6 1.4-1.4v-2.1">
+        </path>
+      </symbol>
+      <symbol id="i-save" viewBox="0 0 24 24">
+        <path d="M4.2 4.2h12.2l3.4 3.4v12.2H4.2V4.2Z"></path>
+        <path d="M7.5 4.2v5.2h7.2V4.2M7.5 19.8v-6.2h9v6.2"></path>
+      </symbol>
+      <symbol id="i-history" viewBox="0 0 24 24">
+        <path d="M4.1 7.1v4.3h4.3"></path>
+        <path d="M4.6 11.4a7.6 7.6 0 1 0 2.1-5.2L4.1 7.9"></path>
+        <path d="M12 8.2V12l2.7 1.8"></path>
+      </symbol>
+      <symbol id="i-restore" viewBox="0 0 24 24">
+        <path d="M4.2 7.7v4.4h4.4"></path>
+        <path d="M5.2 12.1A7.2 7.2 0 1 0 6.7 7"></path>
+      </symbol>
+      <symbol id="i-power" viewBox="0 0 24 24">
+        <path d="M12 3.4v8"></path>
+        <path d="M6.5 6.4a8 8 0 1 0 11 0"></path>
+      </symbol>
+      <symbol id="i-tray" viewBox="0 0 24 24">
+        <rect x="3.4" y="14.2" width="17.2" height="6.4" rx="2"></rect>
+        <path d="M12 3.6v8.2M8.8 8.6 12 11.8l3.2-3.2"></path>
+      </symbol>
+      <symbol id="i-vdisplay" viewBox="0 0 24 24">
+        <rect x="2.8" y="4.6" width="13.4" height="9.8" rx="2"></rect>
+        <path d="M8.6 18.6h6.8"></path>
+        <path d="M12 14.6v4"></path>
+        <rect x="17.4" y="8.4" width="4.2" height="7" rx="1.3"></rect>
+      </symbol>
+    </defs>
+  </svg>
+
+  <div class="ambient" aria-hidden="true">
+    <span class="ambient-orb ambient-orb-a"></span>
+    <span class="ambient-orb ambient-orb-b"></span>
+    <span class="ambient-grid"></span>
+  </div>
+
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark"><svg class="icon">
+            <use href="#i-logo"></use>
+          </svg></span>
+        <span class="brand-copy">
+          <span class="eyebrow">AUTOSCRCPY</span>
+          <span class="brand-title">镜像控制台</span>
+        </span>
+      </div>
+
+      <div class="topbar-status">
+        <span class="status-pill is-pending" id="connectionPill">
+          <span class="status-dot"></span>
+          <span id="connectionText">正在连接后端</span>
+        </span>
+        <span class="save-indicator" id="saveIndicator">
+          <span class="save-dot"></span>
+          <span id="saveText">正在加载设置</span>
+        </span>
+      </div>
+
+      <div class="topbar-actions">
+        <div class="scale-control" id="scaleControl" title="界面缩放">
+          <svg class="icon">
+            <use href="#i-zoom"></use>
+          </svg>
+          <div class="combo-wrap scale-combo">
+            <input class="combo-input" id="uiScaleInput" type="text" inputmode="numeric" autocomplete="off"
+              spellcheck="false" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-label="界面缩放"
+              aria-controls="comboMenu">
+            <button class="combo-toggle" id="uiScaleToggle" type="button" aria-label="选择界面缩放预设" aria-haspopup="listbox"
+              aria-expanded="false" title="选择预设，或直接输入 70%–250%">
+              <svg class="icon">
+                <use href="#i-chevron"></use>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="appearance-switch" id="appearanceSwitch" role="radiogroup" aria-label="界面明暗">
+          <button class="appearance-option" type="button" data-appearance-value="light" role="radio"
+            aria-checked="false" title="浅色">浅色</button>
+          <button class="appearance-option" type="button" data-appearance-value="dark" role="radio"
+            aria-checked="false" title="深色">深色</button>
+          <button class="appearance-option is-active" type="button" data-appearance-value="system" role="radio"
+            aria-checked="true" title="跟随 Windows 的浅色/深色设置">跟随系统</button>
+        </div>
+        <div class="color-control" id="colorControl" title="界面配色">
+          <span class="color-dot" id="colorDot" aria-hidden="true"></span>
+          <button class="color-button" id="colorButton" type="button" aria-haspopup="listbox" aria-expanded="false"
+            data-tooltip="选择界面颜色">
+            <span class="color-label" id="colorLabel">青碧</span>
+            <svg class="icon">
+              <use href="#i-chevron"></use>
+            </svg>
+          </button>
+        </div>
+        <button class="window-action is-quit" id="windowActionButton" type="button" title="退出应用">
+          <svg class="icon">
+            <use href="#i-power"></use>
+          </svg>
+          <span id="windowActionLabel">退出应用</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="panel device-panel" aria-label="设备与配置">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">DEVICES</p>
+            <h2>连接设备</h2>
+          </div>
+          <button class="icon-button" id="refreshDevicesButton" title="重新扫描 adb 设备" aria-label="重新扫描 adb 设备">
+            <svg class="icon">
+              <use href="#i-refresh"></use>
+            </svg>
+          </button>
+        </div>
+
+        <p class="section-note" id="deviceStatusLine">正在读取 adb 设备列表…</p>
+        <div class="device-list" id="deviceList" aria-live="polite">
+          <div class="device-skeleton">
+            <span class="skeleton-line skeleton-wide"></span>
+            <span class="skeleton-line skeleton-short"></span>
+          </div>
+          <div class="device-skeleton">
+            <span class="skeleton-line skeleton-wide"></span>
+            <span class="skeleton-line skeleton-short"></span>
+          </div>
+        </div>
+
+        <section class="wireless-box">
+          <button class="subsection-heading" id="wirelessToggle" aria-expanded="true" aria-controls="wirelessBody">
+            <span class="subsection-icon"><svg class="icon">
+                <use href="#i-wifi"></use>
+              </svg></span>
+            <span>
+              <strong>无线调试连接</strong>
+              <small>通过 adb connect 添加设备</small>
+            </span>
+            <svg class="icon chevron">
+              <use href="#i-chevron"></use>
+            </svg>
+          </button>
+          <div class="subsection-body" id="wirelessBody">
+            <label class="field-label" for="wirelessAddress">设备地址</label>
+            <div class="input-attached">
+              <input id="wirelessAddress" type="text" spellcheck="false" autocomplete="off"
+                placeholder="192.168.5.60:5555">
+              <button class="button button-compact" id="connectDeviceButton">连接</button>
+            </div>
+            <p class="hint">Android 11 及以上可在「开发者选项 → 无线调试」查看地址与端口。</p>
+          </div>
+        </section>
+
+        <section class="profile-section">
+          <div class="profile-heading">
+            <div class="subsection-heading passive">
+              <span class="subsection-icon"><svg class="icon">
+                  <use href="#i-save"></use>
+                </svg></span>
+              <span>
+                <strong>我的配置</strong>
+                <small>右键恢复 · 双击运行</small>
+              </span>
+            </div>
+            <button class="button button-compact profile-save-button" id="saveProfileButton" title="把当前参数保存为命名配置">
+              <svg class="icon">
+                <use href="#i-save"></use>
+              </svg><span>保存当前</span>
+            </button>
+          </div>
+          <p class="profile-hint">配置会记住当前参数与设备；右键只恢复，左键双击会直接运行。</p>
+          <div class="profile-list" id="profileList" aria-live="polite"></div>
+        </section>
+
+        <section class="runtime-meta" aria-label="运行时信息">
+          <div class="runtime-row">
+            <span>scrcpy</span><strong id="scrcpyVersionValue">—</strong>
+          </div>
+          <div class="runtime-row">
+            <span>adb</span><strong id="adbVersionValue">—</strong>
+          </div>
+          <div class="runtime-row">
+            <span>本机端口</span><strong id="portValue">—</strong>
+          </div>
+          <div class="runtime-row">
+            <span>窗口</span><strong id="windowBackendValue">—</strong>
+          </div>
+        </section>
+      </aside>
+
+      <section class="panel builder-panel" aria-label="scrcpy 参数">
+        <div class="builder-heading">
+          <div>
+            <p class="eyebrow">COMMAND BUILDER</p>
+            <h2>把参数变成开关</h2>
+            <p class="heading-note">不用记命令。每个开关都标出了对应的原始 scrcpy 参数。</p>
+          </div>
+          <div class="builder-tools">
+            <label class="search-field" for="optionSearch">
+              <svg class="icon">
+                <use href="#i-search"></use>
+              </svg>
+              <input id="optionSearch" type="search" placeholder="搜索参数或功能…" autocomplete="off" spellcheck="false">
+              <kbd>/</kbd>
+            </label>
+            <button class="button button-ghost" id="resetOptionsButton" title="将参数恢复为默认值">
+              <svg class="icon">
+                <use href="#i-reset"></use>
+              </svg><span>恢复默认</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="capability-banner" id="capabilityBanner">
+          <span class="banner-icon"><svg class="icon">
+              <use href="#i-info"></use>
+            </svg></span>
+          <div>
+            <strong id="capabilityTitle">选择一台设备后开始</strong>
+            <p id="capabilityText">界面会根据设备的 Android 版本，自动说明哪些参数不可用。</p>
+          </div>
+          <span class="banner-badge" id="capabilityBadge">等待设备</span>
+        </div>
+
+        <div class="options-root" id="optionsRoot"></div>
+        <div class="no-results" id="noResults" hidden>
+          <svg class="icon">
+            <use href="#i-search"></use>
+          </svg>
+          <strong>没有匹配的开关</strong>
+          <span>换一个关键词试试，例如「声音」「摄像头」或「--max-fps」。</span>
+        </div>
+      </section>
+
+      <aside class="panel console-panel" aria-label="命令与执行结果">
+        <section class="command-section">
+          <div class="panel-heading compact">
+            <div>
+              <p class="eyebrow">LIVE COMMAND</p>
+              <h2>命令预览</h2>
+            </div>
+            <button class="icon-button" id="copyCommandButton" title="复制完整命令" aria-label="复制完整命令">
+              <svg class="icon">
+                <use href="#i-copy"></use>
+              </svg>
+            </button>
+          </div>
+
+          <div class="command-shell">
+            <div class="command-bar" aria-hidden="true">
+              <span class="traffic traffic-red"></span>
+              <span class="traffic traffic-amber"></span>
+              <span class="traffic traffic-green"></span>
+              <span class="command-bar-title">scrcpy</span>
+            </div>
+            <pre class="command-line" id="commandLine"
+              aria-live="polite"><span class="token-command">scrcpy</span></pre>
+          </div>
+
+          <div class="command-meta">
+            <span id="optionCount">0 个参数</span>
+            <span class="meta-separator"></span>
+            <span class="command-warning" id="commandWarning">选择设备后可运行</span>
+          </div>
+
+          <div class="extra-args" id="extraArgsBox">
+            <div class="extra-args-head">
+              <label class="extra-args-label" for="extraArgsInput">额外参数</label>
+              <span class="extra-args-hint">冷门参数直接追加，空格分隔，可用双引号</span>
+            </div>
+            <input class="extra-args-input" id="extraArgsInput" type="text" spellcheck="false" autocomplete="off"
+              placeholder="例如 --no-mipmaps --shortcut-mod=lctrl">
+            <p class="extra-args-error" id="extraArgsError" hidden></p>
+          </div>
+
+          <div class="after-start-row">
+            <span class="after-start-label" id="afterStartLabel">开始投屏后</span>
+            <div class="segmented after-start-options" id="afterStartControl" role="radiogroup"
+              aria-labelledby="afterStartLabel">
+              <button type="button" class="segmented-button" data-after-start="focus" role="radio" aria-checked="true"
+                title="开始投屏后只把投屏窗口切到最前，控制台保持原样">
+                <span class="segment-label">仅聚焦到投屏窗口</span>
+              </button>
+              <button type="button" class="segmented-button" data-after-start="minimize" role="radio"
+                aria-checked="false" title="开始投屏后把投屏窗口切到最前，并最小化控制台窗口">
+                <span class="segment-label">最小化控制台</span>
+              </button>
+              <button type="button" class="segmented-button" data-after-start="tray" role="radio" aria-checked="false"
+                title="开始投屏后把投屏窗口切到最前，把控制台收进托盘并停止界面，只保留后端服务">
+                <span class="segment-label">最小化到托盘</span>
+              </button>
+            </div>
+          </div>
+          <div class="auto-console-row" id="autoConsoleRow"
+            title="投屏结束、退出或被关闭后，如果控制台已最小化或收进托盘，自动恢复或重新打开控制台">
+            <span class="auto-console-label">投屏被关闭后自动弹出控制台</span>
+            <div class="switch-wrap">
+              <button class="switch" id="autoConsoleSwitch" type="button" role="switch" aria-checked="true"
+                aria-label="投屏被关闭后自动弹出控制台"></button>
+              <span class="switch-state" id="autoConsoleState">开启</span>
+            </div>
+          </div>
+          <div class="auto-console-row" id="keepBackgroundRow"
+            title="开启时，点击窗口的关闭按钮会把控制台收进托盘并停止界面，只保留后台；关闭时，点击关闭按钮会彻底退出">
+            <span class="auto-console-label">关闭窗口时保留后台</span>
+            <div class="switch-wrap">
+              <button class="switch" id="keepBackgroundSwitch" type="button" role="switch" aria-checked="true"
+                aria-label="关闭窗口时保留后台"></button>
+              <span class="switch-state" id="keepBackgroundState">开启</span>
+            </div>
+          </div>
+          <div class="run-row">
+            <button class="button button-primary button-run" id="runButton" disabled>
+              <svg class="icon">
+                <use href="#i-play"></use>
+              </svg>
+              <span>运行 scrcpy</span>
+              <kbd>Ctrl ↵</kbd>
+            </button>
+            <button class="button button-restart" id="restartButton" hidden title="运行中 · 新的命令需重启生效"
+              aria-label="重启 scrcpy（运行中 · 新的命令需重启生效）">
+              <svg class="icon">
+                <use href="#i-restart"></use>
+              </svg>
+              <span>重启</span>
+            </button>
+            <button class="button button-danger button-stop" id="stopButton" hidden>
+              <svg class="icon">
+                <use href="#i-stop"></use>
+              </svg>
+              <span>停止</span>
+            </button>
+          </div>
+          <p class="run-hint" id="runHint">正在等待后端连接…</p>
+        </section>
+
+        <section class="result-section">
+          <div class="result-heading">
+            <div>
+              <p class="eyebrow">OUTPUT</p>
+              <h2>执行结果</h2>
+            </div>
+            <div class="result-actions">
+              <span class="run-state-badge is-idle" id="runStateBadge">尚未运行</span>
+              <button class="icon-button small" id="copyLogButton" title="复制日志" aria-label="复制日志">
+                <svg class="icon">
+                  <use href="#i-copy"></use>
+                </svg>
+              </button>
+              <button class="icon-button small" id="clearLogButton" title="清空日志" aria-label="清空日志">
+                <svg class="icon">
+                  <use href="#i-close"></use>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="terminal" id="logView" tabindex="0" aria-label="scrcpy 输出日志">
+            <div class="terminal-empty" id="terminalEmpty">
+              <span class="terminal-glyph"><svg class="icon">
+                  <use href="#i-terminal"></use>
+                </svg></span>
+              <strong>等待第一次运行</strong>
+              <p>启动后，scrcpy 的输出、警告和退出状态会实时显示在这里。</p>
+              <div class="terminal-tips">
+                <span><kbd>Ctrl</kbd> + <kbd>↵</kbd> 快速运行</span>
+                <span>日志自动保留最新 2500 行</span>
+              </div>
+            </div>
+            <div class="log-lines" id="logLines"></div>
+          </div>
+
+          <div class="result-footer">
+            <span id="runSummary">尚未运行</span>
+            <button class="text-button" id="scrollToBottomButton" hidden>回到底部</button>
+          </div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <div class="disconnect-overlay" id="disconnectOverlay" hidden>
+    <div class="disconnect-card">
+      <span class="disconnect-glyph"><svg class="icon">
+          <use href="#i-logo"></use>
+        </svg></span>
+      <p class="eyebrow" id="disconnectEyebrow">CONNECTION LOST</p>
+      <h2 id="disconnectTitle">连接已断开</h2>
+      <p id="disconnectMessage">后端已经退出，窗口即将自动关闭。</p>
+      <button class="button button-primary" id="disconnectCloseButton">关闭窗口</button>
+    </div>
+  </div>
+
+  <dialog class="confirm-dialog" id="confirmDialog">
+    <form method="dialog">
+      <span class="dialog-icon"><svg class="icon">
+          <use href="#i-alert"></use>
+        </svg></span>
+      <h2 id="confirmTitle">确认操作</h2>
+      <p id="confirmMessage"></p>
+      <div class="dialog-actions">
+        <button class="button button-ghost" value="cancel" id="confirmCancelButton">取消</button>
+        <button class="button button-primary" value="ok" id="confirmOkButton">确认</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="confirm-dialog prompt-dialog profile-dialog" id="profileDialog">
+    <div class="prompt-body">
+      <span class="dialog-icon"><svg class="icon">
+          <use href="#i-save"></use>
+        </svg></span>
+      <h2>保存为配置</h2>
+      <p>选择已有配置可覆盖保存，也可以输入新名称。保存后右键恢复，或左键双击直接运行。</p>
+      <label class="prompt-label" for="profileNameInput">配置名称</label>
+      <div class="profile-name-combo">
+        <div class="profile-name-field">
+          <input class="prompt-input" id="profileNameInput" type="text" maxlength="40" autocomplete="off"
+            spellcheck="false" placeholder="例如：夜间低延迟录制" role="combobox" aria-autocomplete="list" aria-haspopup="listbox"
+            aria-controls="profileNameMenu" aria-expanded="false">
+          <button class="profile-name-toggle" id="profileNameToggle" type="button" aria-label="选择已有配置"
+            title="选择已有配置以覆盖">
+            <span class="profile-name-chevron" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div class="profile-name-menu" id="profileNameMenu" role="listbox" aria-label="已有配置" hidden></div>
+      </div>
+      <p class="profile-overwrite-hint" id="profileOverwriteHint" hidden></p>
+      <p class="prompt-error" id="profileNameError"></p>
+      <div class="dialog-actions">
+        <button class="button button-ghost" type="button" id="profileDialogCancelButton">取消</button>
+        <button class="button button-primary" type="button" id="profileDialogSaveButton">保存配置</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="toast-root" id="toastRoot" aria-live="polite" aria-atomic="true"></div>
+  <div class="floating-tooltip" id="floatingTooltip" role="tooltip" hidden></div>
+  <div class="combo-menu" id="comboMenu" role="listbox" aria-label="预设选项" hidden></div>
+
+  <template id="deviceTemplate">
+    <article class="device-card" tabindex="0" role="button">
+      <span class="device-radio" aria-hidden="true"><span></span></span>
+      <div class="device-main">
+        <div class="device-title-row">
+          <strong class="device-name"></strong>
+          <span class="connection-badge"></span>
+        </div>
+        <code class="device-serial"></code>
+        <div class="device-details"></div>
+        <p class="device-state-hint"></p>
+      </div>
+      <button class="device-disconnect" title="断开此无线设备" aria-label="断开此无线设备">
+        <svg class="icon">
+          <use href="#i-close"></use>
+        </svg>
+      </button>
+    </article>
+  </template>
+
+  <noscript>
+    <div class="noscript">AutoScrcpy 需要启用 JavaScript 才能使用。</div>
+  </noscript>
+
+  <script src="assets/app.js"></script>
+</body>
+
+</html>

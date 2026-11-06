@@ -2,7 +2,7 @@
 setlocal
 cd /d "%~dp0"
 echo Starting AutoScrcpy with a visible console...
-echo Close the UI window to stop the backend, or quit from the tray icon.
+echo Use the top-right window button, the window close button or the tray icon to quit.
 echo.
 python app.py --verbose %*
 set "RC=%ERRORLEVEL%"
