@@ -184,7 +184,7 @@
       </div>
 
       <div class="topbar-actions">
-        <div class="scale-control" id="scaleControl" data-tooltip="界面缩放">
+        <div class="scale-control" id="scaleControl" data-tooltip="调整整个界面的大小">
           <svg class="icon">
             <use href="#i-zoom"></use>
           </svg>
@@ -193,7 +193,7 @@
               spellcheck="false" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-label="界面缩放"
               aria-controls="comboMenu">
             <button class="combo-toggle" id="uiScaleToggle" type="button" aria-label="选择界面缩放预设" aria-haspopup="listbox"
-              aria-expanded="false" data-tooltip="选择预设，或直接输入 70%–250%">
+              aria-expanded="false" data-tooltip="点这里挑一个常用大小；也可以直接输入 70 到 250 之间的数字">
               <svg class="icon">
                 <use href="#i-chevron"></use>
               </svg>
@@ -202,23 +202,23 @@
         </div>
         <div class="appearance-switch" id="appearanceSwitch" role="radiogroup" aria-label="界面明暗">
           <button class="appearance-option" type="button" data-appearance-value="light" role="radio"
-            aria-checked="false" data-tooltip="浅色">浅色</button>
+            aria-checked="false" data-tooltip="白底黑字">浅色</button>
           <button class="appearance-option" type="button" data-appearance-value="dark" role="radio"
-            aria-checked="false" data-tooltip="深色">深色</button>
+            aria-checked="false" data-tooltip="黑底白字">深色</button>
           <button class="appearance-option is-active" type="button" data-appearance-value="system" role="radio"
-            aria-checked="true" data-tooltip="跟随 Windows 的浅色/深色设置">跟随系统</button>
+            aria-checked="true" data-tooltip="Windows 用浅色就浅色，用深色就深色">跟随系统</button>
         </div>
-        <div class="color-control" id="colorControl" data-tooltip="界面配色">
+        <div class="color-control" id="colorControl" data-tooltip="挑一个界面主色">
           <span class="color-dot" id="colorDot" aria-hidden="true"></span>
           <button class="color-button" id="colorButton" type="button" aria-haspopup="listbox" aria-expanded="false"
-            data-tooltip="选择界面颜色">
+            data-tooltip="换界面主色">
             <span class="color-label" id="colorLabel">青碧</span>
             <svg class="icon">
               <use href="#i-chevron"></use>
             </svg>
           </button>
         </div>
-        <button class="window-action is-quit" id="windowActionButton" type="button" data-tooltip="退出应用">
+        <button class="window-action is-quit" id="windowActionButton" type="button" data-tooltip="退出 AutoScrcpy">
           <svg class="icon">
             <use href="#i-power"></use>
           </svg>
@@ -234,7 +234,7 @@
             <p class="eyebrow">DEVICES</p>
             <h2>连接设备</h2>
           </div>
-          <button class="icon-button" id="refreshDevicesButton" data-tooltip="重新扫描 adb 设备" aria-label="重新扫描 adb 设备">
+          <button class="icon-button" id="refreshDevicesButton" data-tooltip="重新找一遍手机" aria-label="重新扫描 adb 设备">
             <svg class="icon">
               <use href="#i-refresh"></use>
             </svg>
@@ -288,7 +288,7 @@
                 <small>右键恢复 · 双击运行</small>
               </span>
             </div>
-            <button class="button button-compact profile-save-button" id="saveProfileButton" data-tooltip="把当前参数保存为命名配置">
+            <button class="button button-compact profile-save-button" id="saveProfileButton" data-tooltip="把现在这些设置存成一个配置，以后可以直接用">
               <svg class="icon">
                 <use href="#i-save"></use>
               </svg><span>保存当前</span>
@@ -329,7 +329,7 @@
               <input id="optionSearch" type="search" placeholder="搜索参数或功能…" autocomplete="off" spellcheck="false">
               <kbd>/</kbd>
             </label>
-            <button class="button button-ghost" id="resetOptionsButton" data-tooltip="将参数恢复为默认值">
+            <button class="button button-ghost" id="resetOptionsButton" data-tooltip="把所有设置恢复成默认">
               <svg class="icon">
                 <use href="#i-reset"></use>
               </svg><span>恢复默认</span>
@@ -390,7 +390,7 @@
               <p class="eyebrow">LIVE COMMAND</p>
               <h2>命令预览</h2>
             </div>
-            <button class="icon-button" id="copyCommandButton" data-tooltip="复制完整命令" aria-label="复制完整命令">
+            <button class="icon-button" id="copyCommandButton" data-tooltip="复制下面这整条命令" aria-label="复制完整命令">
               <svg class="icon">
                 <use href="#i-copy"></use>
               </svg>
@@ -429,21 +429,21 @@
             <div class="segmented after-start-options" id="afterStartControl" role="radiogroup"
               aria-labelledby="afterStartLabel">
               <button type="button" class="segmented-button" data-after-start="focus" role="radio" aria-checked="true"
-                data-tooltip="开始投屏后只把投屏窗口切到最前，控制台保持原样">
+                data-tooltip="开始投屏后，只把投屏窗口放到最前面，控制台不动">
                 <span class="segment-label">仅聚焦到投屏窗口</span>
               </button>
               <button type="button" class="segmented-button" data-after-start="minimize" role="radio"
-                aria-checked="false" data-tooltip="开始投屏后把投屏窗口切到最前，并最小化控制台窗口">
+                aria-checked="false" data-tooltip="开始投屏后，把投屏窗口放到最前面，再把控制台最小化到任务栏">
                 <span class="segment-label">最小化控制台</span>
               </button>
               <button type="button" class="segmented-button" data-after-start="tray" role="radio" aria-checked="false"
-                data-tooltip="开始投屏后把投屏窗口切到最前，把控制台收进托盘并停止界面，只保留后端服务">
+                data-tooltip="开始投屏后，把投屏窗口放到最前面，控制台收进托盘，界面关掉，只留托盘和后台">
                 <span class="segment-label">最小化到托盘</span>
               </button>
             </div>
           </div>
           <div class="auto-console-row" id="autoConsoleRow"
-            data-tooltip="投屏结束、退出或被关闭后，如果控制台已最小化或收进托盘，自动恢复或重新打开控制台">
+            data-tooltip="投屏结束、退出或被关掉后，如果控制台已经最小化或收进托盘，就自动打开它">
             <span class="auto-console-label">投屏被关闭后自动弹出控制台</span>
             <div class="switch-wrap">
               <button class="switch" id="autoConsoleSwitch" type="button" role="switch" aria-checked="true"
@@ -452,7 +452,7 @@
             </div>
           </div>
           <div class="auto-console-row" id="keepBackgroundRow"
-            data-tooltip="开启时，点击窗口的关闭按钮会把控制台收进托盘并停止界面，只保留后台；关闭时，点击关闭按钮会彻底退出">
+            data-tooltip="打开后：点窗口的 × 会把控制台收进托盘，后台继续跑；关闭后：点 × 就直接退出">
             <span class="auto-console-label">关闭窗口时保留后台</span>
             <div class="switch-wrap">
               <button class="switch" id="keepBackgroundSwitch" type="button" role="switch" aria-checked="true"
@@ -468,7 +468,7 @@
               <span>运行 scrcpy</span>
               <kbd>Ctrl ↵</kbd>
             </button>
-            <button class="button button-restart" id="restartButton" hidden data-tooltip="运行中 · 新的命令需重启生效"
+            <button class="button button-restart" id="restartButton" hidden data-tooltip="运行中改了设置？点这里按新设置重启"
               aria-label="重启 scrcpy（运行中 · 新的命令需重启生效）">
               <svg class="icon">
                 <use href="#i-restart"></use>
@@ -493,12 +493,12 @@
             </div>
             <div class="result-actions">
               <span class="run-state-badge is-idle" id="runStateBadge">尚未运行</span>
-              <button class="icon-button small" id="copyLogButton" data-tooltip="复制日志" aria-label="复制日志">
+              <button class="icon-button small" id="copyLogButton" data-tooltip="复制全部日志" aria-label="复制日志">
                 <svg class="icon">
                   <use href="#i-copy"></use>
                 </svg>
               </button>
-              <button class="icon-button small" id="clearLogButton" data-tooltip="清空日志" aria-label="清空日志">
+              <button class="icon-button small" id="clearLogButton" data-tooltip="清空全部日志" aria-label="清空日志">
                 <svg class="icon">
                   <use href="#i-close"></use>
                 </svg>
@@ -570,7 +570,7 @@
             spellcheck="false" placeholder="例如：夜间低延迟录制" role="combobox" aria-autocomplete="list" aria-haspopup="listbox"
             aria-controls="profileNameMenu" aria-expanded="false">
           <button class="profile-name-toggle" id="profileNameToggle" type="button" aria-label="选择已有配置"
-            data-tooltip="选择已有配置以覆盖">
+            data-tooltip="选一个保存过的配置来覆盖">
             <span class="profile-name-chevron" aria-hidden="true"></span>
           </button>
         </div>
@@ -601,7 +601,7 @@
         <div class="device-details"></div>
         <p class="device-state-hint"></p>
       </div>
-      <button class="device-disconnect" data-tooltip="断开此无线设备" aria-label="断开此无线设备">
+      <button class="device-disconnect" data-tooltip="断开这台无线设备" aria-label="断开此无线设备">
         <svg class="icon">
           <use href="#i-close"></use>
         </svg>

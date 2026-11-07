@@ -149,19 +149,19 @@
     {
       value: "display",
       label: "设备屏幕",
-      detail: "镜像设备当前屏幕；不附加 --video-source 参数。",
+      detail: "直接投手机现在的屏幕，不会多加参数。",
     },
     {
       value: "camera",
       label: "摄像头",
       detail:
-        "采集设备摄像头，附加 --video-source=camera；需要 scrcpy 支持且设备为 Android 12+。",
+        "用手机摄像头当画面，会加上 --video-source=camera。要 scrcpy 支持，手机要 Android 12 以上。",
     },
     {
       value: "virtual",
       label: "虚拟屏幕",
       detail:
-        "新开一块虚拟显示，附加 --new-display；需要 Android 10+，尺寸可在「虚拟显示」组调整。",
+        "新开一块虚拟屏幕，会加上 --new-display。要 Android 10 以上，大小可以在下面的「虚拟显示」里调。",
     },
   ];
   const ANDROID_NAMES = {
@@ -194,7 +194,7 @@
           "分辨率上限",
           "--max-size",
           "限制画面长边像素，可选项或直接输入数值",
-          "对应 --max-size。官方默认 0（原始分辨率），选择默认值不会附加参数。可直接输入像素值，例如 1440；scrcpy 会按屏幕比例缩放。",
+          "画面的最长边最多保留多少像素。数字越小越省流量、越不吃性能。留空或选 0 就是原画质，不会加参数；也可以直接输入 1440 这类数字，scrcpy 会等比例缩小。",
           [
             { value: "0", label: "原始分辨率（默认）" },
             { value: "3840", label: "3840 px（4K）" },
@@ -220,7 +220,7 @@
           "帧率上限",
           "--max-fps",
           "限帧，不选则由 scrcpy 不限制",
-          "对应 --max-fps。官方不指定时为不限制，选择「不限」不会附加参数。预设为不限、30、60、90、120 fps。",
+          "最多每秒显示多少帧。留空或选「不限」就不限制。帧率低一点更省电、更稳；60 帧适合大多数手机，120 帧只适合高刷设备和性能好的电脑。",
           [
             { value: "0", label: "不限" },
             { value: "30", label: "30 fps" },
@@ -247,7 +247,7 @@
           "视频码率",
           "--video-bit-rate",
           "输入数字自动补全；默认 8M",
-          "对应 --video-bit-rate（简写 -b）。官方默认 8M，选择或输入 8M 都不会附加参数。可以直接输入数字，程序会自动补上 M，例如输入 12 得到 12M；也支持 K 后缀。",
+          "视频每秒用多少数据。数字越大越清晰，但更吃网速和电脑性能。留空就是默认的 8M；直接输入 12 会自动变成 12M，也可以写 800K 这种小码率。",
           [
             { value: "1M", label: "1 Mbps" },
             { value: "2M", label: "2 Mbps" },
@@ -270,7 +270,7 @@
           "视频编码",
           "--video-codec",
           "H.264 兼容性最好，H.265 更省带宽",
-          "对应 --video-codec。官方默认 H.264，选择默认值不会附加参数。H.265 通常更省带宽，AV1/VP8/VP9 需要设备有对应编码器。",
+          "用哪种方式压缩画面。H.264 最通用，几乎什么设备都能放；H.265 更省流量；AV1、VP8、VP9 要看手机支不支持。拿不准就用 H.264。",
           [
             { value: "h264", label: "H.264（默认）", arg: null },
             { value: "h265", label: "H.265 / HEVC" },
@@ -285,7 +285,7 @@
           "硬件解码（电脑）",
           "--hwdec",
           "默认优先显卡解码，失败时回退软件解码",
-          "对应 --hwdec，scrcpy 5.0 起新增。默认自动：优先使用可用的硬件解码器，失败时回退软件解码；「软件解码」强制关闭硬件解码；D3D11VA 强制使用 Windows 的 D3D11VA 硬解，显卡或驱动不支持时会直接启动失败（不会回退），不确定时请用默认的自动。硬件解码只影响电脑端播放，必须有视频播放，所以「无窗口运行」时不可用。Windows 上播放 H.265 时建议使用 scrcpy 5.0.1 或更高版本。",
+          "让电脑显卡帮忙解码，能减轻 CPU 负担。默认「自动」最省心；「软件解码」最稳但更吃 CPU；D3D11VA 会强制用显卡，显卡或驱动不支持时可能直接打不开画面。用「无窗口运行」时这项用不了。要 scrcpy 5.0 以上；看 H.265 建议 5.0.1 以上。",
           [
             { value: "", label: "自动（默认）" },
             { value: "disabled", label: "软件解码" },
@@ -298,7 +298,7 @@
           "整体方向（预览+录制）",
           "--orientation",
           "0/90/180/270 为顺时针角度，同时作用于预览和录制",
-          "对应 --orientation。它等价于同时设置 --display-orientation 和 --record-orientation。数值表示顺时针旋转角度，只支持 0/90/180/270；录制方向不支持翻转，所以这里不提供 flip。若同时设置了「仅预览方向」，以本项为准。",
+          "把画面顺时针转多少度，预览和录制会一起转。只能选 0、90、180、270。已经设了「仅预览方向」时，以这里为准；录制不能镜像翻转，所以这里没有翻转选项。",
           [
             { value: "0", label: "0°（默认）", arg: null },
             { value: "90", label: "90°" },
@@ -312,7 +312,7 @@
           "仅预览方向",
           "--display-orientation",
           "只改变电脑上的预览，角度为顺时针，不影响录制文件",
-          "对应 --display-orientation。它只作用于 scrcpy 窗口的显示，不会改变录制内容。官方默认 0°，选择默认值不会附加参数。数值表示顺时针旋转角度；flip 前缀表示先水平翻转再旋转。如果设置了「整体方向」，本项会被覆盖。",
+          "只转电脑上看到的画面，不影响录出来的视频。角度按顺时针算；带「水平翻转」的选项相当于照镜子。已经设了「整体方向」时，这项会被覆盖。",
           [
             { value: "0", label: "0°（默认）", arg: null },
             { value: "90", label: "90°" },
@@ -330,7 +330,7 @@
           "采集方向（设备侧）",
           "--capture-orientation",
           "设备端顺时针变换，预览和录制都会受影响",
-          "对应 --capture-orientation。官方默认 0°，选择默认值不会附加参数。数值表示顺时针旋转角度。变换发生在采集编码前，所以预览和录制文件都会包含该方向。flip 前缀表示先水平翻转再旋转；flip180 = 水平翻转 + 180°，常用来把后摄画面调成镜子。它可以和「整体方向」组合使用。",
+          "在手机端先把画面转好再传过来，所以预览和录制都会变。带「水平翻转」的选项可以当镜子用，比如把后置摄像头画面调成自拍效果。可以和「整体方向」一起用。",
           [
             { value: "0", label: "0°（默认）", arg: null },
             { value: "90", label: "90°" },
@@ -348,7 +348,7 @@
           "镜像显示 ID",
           "--display-id",
           "镜像设备上已有的某块显示，0 是主屏",
-          "对应 --display-id。默认 0（主屏），填 0 不会附加参数。可用 scrcpy --list-displays 查看设备上的显示 ID。它与「虚拟显示尺寸」互斥：已开启虚拟显示时不能再指定显示 ID。",
+          "要镜像手机上的哪块屏幕。0 是主屏，留空或填 0 都不会加参数。可以先用 scrcpy --list-displays 看有哪些编号。已经开了虚拟屏幕时，这项不能同时用。",
           "",
           { min: 0, step: 1, omitValues: ["0"], conflictsWithVirtual: true }
         ),
@@ -357,21 +357,21 @@
           "全屏启动",
           "--fullscreen",
           "启动后直接占满整个屏幕",
-          "对应 --fullscreen（简写 -f）。适合专注查看或演示，按 scrcpy 的快捷键（默认 Alt+F 或 F11）可退出全屏。"
+          "一启动就全屏显示。想专心看画面或做演示时好用。按 scrcpy 的快捷键（一般是 Alt+F 或 F11）可以退出全屏。"
         ),
         T(
           "alwaysOnTop",
           "窗口置顶",
           "--always-on-top",
           "让镜像窗口始终保持在其他窗口上方",
-          "对应 --always-on-top。适合边看手机边操作电脑，但可能挡住其他窗口。"
+          "让投屏窗口一直压在其他窗口上面，方便边看手机边用电脑。但可能会挡住别的窗口。"
         ),
         T(
           "borderless",
           "无边框窗口",
           "--window-borderless",
           "去掉窗口标题栏和边框，观感更干净",
-          "对应 --window-borderless。窗口仍然可以拖动和缩放，只是不显示系统边框。"
+          "去掉窗口的标题栏和边框，看起来更干净。窗口还是能拖、能缩放。"
         ),
       ],
     },
@@ -386,35 +386,35 @@
           "保持设备唤醒",
           "--stay-awake",
           "镜像期间阻止设备自动熄屏",
-          "对应 --stay-awake（简写 -w）。通过 USB 或无线连接调试时，让设备在 scrcpy 运行期间不自动锁屏，退出后会恢复原设置。scrcpy 默认不开启。"
+          "投屏期间不让手机自动锁屏。通过 USB 或无线调试连接时都有效，退出后手机会恢复原来的设置。scrcpy 默认不开这项。"
         ),
         T(
           "turnScreenOff",
           "关闭设备屏幕",
           "--turn-screen-off",
           "设备屏幕熄灭，但电脑上的镜像继续显示",
-          "对应 --turn-screen-off（简写 -S）。启动时立即熄灭设备物理屏幕以省电，镜像画面不受影响。点击或按键可以让屏幕重新亮起。"
+          "启动后马上把手机屏幕关掉，省电，但电脑上的画面照常显示。碰一下手机或按电源键就能重新亮屏。"
         ),
         T(
           "showTouches",
           "显示触摸位置",
           "--show-touches",
           "在设备画面上显示触摸点",
-          "对应 --show-touches（简写 -t）。只显示设备上的真实触摸，不显示鼠标点击。适合演示或录制操作。"
+          "在手机画面上显示手指按到的位置。只显示真的用手指点，不显示电脑鼠标。演示或录教程时好用。"
         ),
         T(
           "powerOffOnClose",
           "退出时熄屏",
           "--power-off-on-close",
           "关闭 scrcpy 时顺便关闭设备屏幕",
-          "对应 --power-off-on-close。适合希望镜像结束就立即锁屏/熄屏的场景。"
+          "关闭 scrcpy 时顺便把手机屏幕关掉。适合投屏结束就想让手机锁屏或熄屏的人。"
         ),
         X(
           "startApp",
           "启动应用",
           "--start-app",
           "在镜像开始前启动指定应用",
-          "对应 --start-app。填写完整包名，例如 org.mozilla.firefox；前缀 ? 表示按名称模糊匹配，前缀 + 表示启动前先强制停止，例如 +?firefox。配合「虚拟屏幕」使用时，应用会启动在新屏幕上。",
+          "投屏开始时顺便打开一个 App。要填包名，比如 org.mozilla.firefox；前面加 ? 可以按名字模糊找，加 + 会先强制关掉再打开（例如 +?firefox）。用虚拟屏幕时，App 会开在新屏幕上。",
           "例如 +?firefox"
         ),
       ],
@@ -430,7 +430,7 @@
           "静音镜像",
           "--no-audio",
           "不把设备声音转发到电脑",
-          "对应 --no-audio。勾选后 scrcpy 完全不采集设备音频，可减少带宽和兼容性问题。Android 11 以下没有音频转发能力，scrcpy 会自动跳过音频。",
+          "完全不把手机声音传到电脑，能省流量，也能避开一些兼容问题。Android 11 以下本来就不能传声音，scrcpy 会自动跳过。",
           false
         ),
         S(
@@ -438,7 +438,7 @@
           "声音来源",
           "--audio-source",
           "选择输出、播放或麦克风",
-          "对应 --audio-source。默认转发设备整体输出；playback 捕获应用播放的声音（scrcpy 5.0 起会包含所有音频 usage），需要 Android 13+；mic 采集设备麦克风，需要 Android 11+。",
+          "声音从哪里来。默认是手机整体输出的声音；「应用播放」只录 App 播放的声音，要 Android 13 以上；「设备麦克风」录手机麦克风，要 Android 11 以上。",
           [
             { value: "output", label: "设备输出（默认）", arg: null },
             { value: "playback", label: "应用播放", minSdk: 33 },
@@ -452,7 +452,7 @@
           "音频编码",
           "--audio-codec",
           "Opus 延迟低，AAC 兼容性好",
-          "对应 --audio-codec。官方默认 Opus，选择默认值不会附加参数。不同编码器对设备和录制容器的支持不同。",
+          "声音用哪种格式压缩。Opus 延迟低、最常用；AAC 兼容性好；FLAC 是无损但文件大；RAW 一般不压缩。设备或录制格式不一定都支持。",
           [
             { value: "opus", label: "Opus（默认）", arg: null },
             { value: "aac", label: "AAC" },
@@ -467,7 +467,7 @@
           "音频码率",
           "--audio-bit-rate",
           "输入 96 会自动变成 96K；默认 128K 不附加参数",
-          "对应 --audio-bit-rate。官方默认 128K，选择或输入 128K 都不会附加参数。输入纯数字会自动补 K，例如输入 96 得到 96K。",
+          "声音每秒用多少数据。数字越大音质越好，但文件或流量也更大。留空是默认 128K；直接输入 96 会自动变成 96K。",
           [
             { value: "32K", label: "32 Kbps" },
             { value: "48K", label: "48 Kbps" },
@@ -493,7 +493,7 @@
           "设备同时外放",
           "--audio-dup",
           "电脑播放声音时，设备也继续播放",
-          "对应 --audio-dup。只在声音来源选择「应用播放」时有效，适合一边录音一边让设备继续出声；这个捕获方式需要 Android 13+。",
+          "电脑放声音的时候，手机也继续外放。只有声音来源选「应用播放」时才有效，而且要 Android 13 以上。",
           false,
           { minSdk: 33, requires: { option: "audioSource", equals: "playback" } }
         ),
@@ -502,7 +502,7 @@
           "无声音则失败",
           "--require-audio",
           "音频不可用时让 scrcpy 直接报错退出",
-          "对应 --require-audio。默认情况下音频失败仍会继续镜像画面；勾选后会严格要求音频成功。",
+          "默认声音传不过来也会继续投画面；打开这项后，声音一出问题 scrcpy 就直接报错退出。",
           false,
           { minSdk: 30, requires: AUDIO }
         ),
@@ -511,7 +511,7 @@
           "仅转发不播放",
           "--no-audio-playback",
           "保留音频数据但不从电脑扬声器播放",
-          "对应 --no-audio-playback。适合录制时不想被电脑声音打扰，同时仍保留声音轨。",
+          "声音数据照样传过来（比如为了录制），但电脑扬声器不播放。适合录制时不想被电脑声音打扰。",
           false,
           { minSdk: 30, requires: AUDIO }
         ),
@@ -528,7 +528,7 @@
           "使用哪颗摄像头",
           "--camera-facing",
           "前置、后置或外接摄像头",
-          "对应 --camera-facing。留空让 scrcpy 自动选择；外接摄像头不一定存在。",
+          "用手机哪颗摄像头。留空让 scrcpy 自己选；也可以指定前置、后置或外接。外接摄像头不是每台手机都有。",
           [
             { value: "", label: "自动（默认）" },
             { value: "front", label: "前置" },
@@ -543,7 +543,7 @@
           "采集尺寸",
           "--camera-size",
           "指定摄像头画面尺寸，可选项或直接输入",
-          "对应 --camera-size。留空使用设备默认值。可选择常见尺寸或直接输入，例如 1920x1080。并非所有尺寸都被摄像头支持，可先用 scrcpy --list-camera-sizes 查看。",
+          "摄像头拍多大尺寸的画面。留空就用手机默认值；可以选常见尺寸，也可以直接输入 1920x1080。不是所有尺寸摄像头都支持，可以先用 scrcpy --list-camera-sizes 查一下。",
           [
             { value: "640x480", label: "640×480" },
             { value: "1280x720", label: "1280×720" },
@@ -566,7 +566,7 @@
           "摄像头帧率",
           "--camera-fps",
           "摄像头采集帧率，预设 30 / 60 / 120",
-          "对应 --camera-fps。官方默认使用 Android 的 30 fps，选择默认值不会附加参数。预设为 30、60、120 fps。",
+          "摄像头每秒拍多少帧。默认 30 帧；想更流畅可以选 60 或 120，但要看摄像头支不支持。",
           [
             { value: "30", label: "30 fps（默认）" },
             { value: "60", label: "60 fps" },
@@ -591,7 +591,7 @@
           "摄像头 ID",
           "--camera-id",
           "直接指定某颗摄像头的编号",
-          "对应 --camera-id。优先级高于 --camera-facing；可用 scrcpy --list-cameras 查看设备上的摄像头编号。",
+          "直接指定用哪一颗摄像头，填编号。它会盖过「使用哪颗摄像头」的选择。可以先用 scrcpy --list-cameras 查编号。",
           "例如 0",
           { minSdk: 31, requires: CAMERA }
         ),
@@ -600,7 +600,7 @@
           "打开补光灯",
           "--camera-torch",
           "采集摄像头时同时打开闪光灯",
-          "对应 --camera-torch。只在摄像头模式有效，且设备需要有可控补光灯。",
+          "用摄像头时把手机补光灯打开。只在摄像头模式下有用，而且手机得有能控制的补光灯。",
           false,
           { minSdk: 31, requires: CAMERA }
         ),
@@ -609,7 +609,7 @@
           "初始变焦",
           "--camera-zoom",
           "设置摄像头启动时的放大倍数",
-          "对应 --camera-zoom。留空使用设备默认值。数值越大画面越近，可用 scrcpy 快捷键继续调整。",
+          "摄像头一开始放大多少倍。留空用手机默认值；数字越大画面越近。投屏后还能用 scrcpy 快捷键继续调。",
           "×",
           { minSdk: 31, requires: CAMERA, min: 0.1, max: 10, step: 0.1 }
         ),
@@ -618,7 +618,7 @@
           "高速采集模式",
           "--camera-high-speed",
           "尝试使用高帧率摄像头模式",
-          "对应 --camera-high-speed。仅部分摄像头和特定分辨率支持，开启后如果失败请关闭。",
+          "尝试让摄像头用高帧率模式。只有部分摄像头和分辨率支持，开了之后如果打不开画面，就关掉这项。",
           false,
           { minSdk: 31, requires: CAMERA }
         ),
@@ -627,7 +627,7 @@
           "宽高比筛选",
           "--camera-ar",
           "按比例自动选择摄像头尺寸，例如 16:9",
-          "对应 --camera-ar。可填 sensor、4:3、16:9 或 1.6 这样的比例；用于在支持的尺寸中自动挑选。",
+          "按画面比例自动挑一个摄像头尺寸，比如 16:9。可以填 4:3、16:9、1.6；填 sensor 就按摄像头的原始比例，让 scrcpy 自己挑。",
           "16:9",
           { minSdk: 31, requires: CAMERA }
         ),
@@ -644,7 +644,7 @@
           "虚拟显示尺寸",
           "--new-display",
           "新开一块虚拟屏幕，与手机当前画面互不影响",
-          "对应 --new-display。留空表示正常镜像设备当前屏幕。选择「主屏尺寸与 DPI」会附加裸参数 --new-display（尺寸和 DPI 取自主屏）；也可以直接输入 1920x1080、1920x1080/420、/240 这样的值。虚拟显示需要 Android 10+，旧设备上相关选项会自动禁用。",
+          "新开一块虚拟屏幕，和手机当前屏幕互不影响。留空就是正常镜像当前屏幕；选「主屏尺寸与 DPI」会照着主屏的样子新建；也可以直接输入 1920x1080、1920x1080/420 或 /240。虚拟屏幕要 Android 10 以上，旧手机上的相关选项会自动变灰。",
           [
             { value: "", label: "关闭（镜像当前屏幕，默认）" },
             { value: "main", label: "主屏尺寸与 DPI" },
@@ -669,7 +669,7 @@
           "窗口尺寸联动虚拟屏",
           "--flex-display",
           "拖动窗口时持续调整虚拟显示分辨率",
-          "对应 --flex-display。开启后虚拟显示会跟随窗口尺寸变化，画面按原始像素呈现（不再默认留黑边）。需要先开启「虚拟显示尺寸」。",
+          "拖动投屏窗口时，虚拟屏幕的分辨率跟着变，画面按原始像素显示，不会默认留黑边。要先开「虚拟显示尺寸」。",
           false,
           { requiresVirtualDisplay: true }
         ),
@@ -678,7 +678,7 @@
           "关闭后保留虚拟屏应用",
           "--no-vd-destroy-content",
           "移除虚拟屏时把应用移回主屏，而不是销毁",
-          "对应 --no-vd-destroy-content。默认关闭虚拟显示时会销毁上面的应用；开启后，应用会被移动到主屏继续运行。需要先开启「虚拟显示尺寸」。",
+          "关掉虚拟屏幕时，上面的 App 默认会被销毁；打开这项后，App 会被挪回主屏继续跑。要先开「虚拟显示尺寸」。",
           false,
           { requiresVirtualDisplay: true }
         ),
@@ -687,7 +687,7 @@
           "隐藏虚拟屏系统装饰",
           "--no-vd-system-decorations",
           "去掉虚拟屏上的状态栏等系统装饰",
-          "对应 --no-vd-system-decorations。开启后虚拟显示不显示状态栏、导航栏等系统装饰，画面更像一块纯应用屏幕。需要先开启「虚拟显示尺寸」。",
+          "虚拟屏幕上不显示状态栏、导航栏这些系统东西，看起来更像一整块 App 画面。要先开「虚拟显示尺寸」。",
           false,
           { requiresVirtualDisplay: true }
         ),
@@ -696,7 +696,7 @@
           "输入法显示位置",
           "--display-ime-policy",
           "控制输入法显示在哪块屏幕上",
-          "对应 --display-ime-policy。local 显示在当前屏幕；fallback 回退到主屏；hide 不显示输入法。与虚拟显示配合使用。",
+          "输入法弹在哪块屏幕上。「当前」就显示在当前屏幕，「主屏」会跑回主屏，「隐藏」干脆不显示。一般配合虚拟屏幕用。",
           [
             { value: "local", label: "当前（默认）", arg: null },
             { value: "fallback", label: "主屏" },
@@ -718,14 +718,14 @@
           "只读模式",
           "--no-control",
           "电脑只能看，不能操作设备",
-          "对应 --no-control（简写 -n）。禁用所有点击、滑动和键盘注入，适合演示或安全查看。"
+          "只能看，不能操作。电脑上的点击、滑动、键盘都不会传到手机，适合演示或安全查看。"
         ),
         S(
           "keyboard",
           "键盘输入方式",
           "--keyboard",
           "选择系统 API 或模拟实体键盘",
-          "对应 --keyboard。默认 sdk 使用 Android 系统接口；uhid 会模拟实体键盘，兼容性更广但需要 Android 6+（部分旧系统可能受 UHID 权限限制），并需要在设备上配置键盘布局；disabled 完全禁用键盘。",
+          "电脑键盘怎么往手机里输入。默认用手机系统自带的方式，最省事；「模拟实体键盘」兼容性更广，但要 Android 6 以上，旧系统可能受权限限制，还要在手机上配好键盘布局；「禁用键盘」就是完全不传键盘。",
           [
             { value: "sdk", label: "系统 API（默认）", arg: null },
             { value: "uhid", label: "模拟实体键盘", minSdk: 23 },
@@ -738,7 +738,7 @@
           "鼠标输入方式",
           "--mouse",
           "选择相对鼠标或系统指针",
-          "对应 --mouse。官方默认 sdk，选择默认值不会附加参数。uhid 会捕获电脑鼠标并模拟实体鼠标，适合游戏；disabled 完全禁用鼠标。",
+          "电脑鼠标怎么控制手机。默认用手机系统自带的方式；「模拟实体鼠标」会抓住电脑鼠标，适合玩游戏；「禁用鼠标」就是完全不传鼠标。",
           [
             { value: "sdk", label: "系统 API（默认）", arg: null },
             { value: "uhid", label: "模拟实体鼠标", minSdk: 23 },
@@ -751,7 +751,7 @@
           "手柄输入",
           "--gamepad",
           "把电脑手柄转发给设备",
-          "对应 --gamepad。官方默认禁用，选择默认值不会附加参数；uhid 模拟实体手柄，需要 Android 6+（部分旧系统可能受 UHID 权限限制）。",
+          "把电脑手柄传给手机。默认关闭；打开后会模拟一个实体手柄，要 Android 6 以上，旧系统可能受权限限制。",
           [
             { value: "disabled", label: "禁用（默认）", arg: null },
             { value: "uhid", label: "模拟实体手柄", minSdk: 23 },
@@ -763,28 +763,28 @@
           "不重复按键",
           "--no-key-repeat",
           "按住按键时不连续触发",
-          "对应 --no-key-repeat。某些游戏或输入场景下，长按重复会带来意外行为，可开启此项。"
+          "按住一个键时不连续重复触发。有些游戏或输入场景里，长按一直重复会出问题，可以打开这项。"
         ),
         T(
           "preferText",
           "优先输入文本",
           "--prefer-text",
           "把字母和空格作为文本输入而不是按键",
-          "对应 --prefer-text。能改善特殊字符输入，但会破坏游戏中 WASD 这类按键行为。"
+          "把字母和空格当成文字输入，而不是当成按键。特殊字符更好打，但游戏里的 WASD 这类按键会失效。"
         ),
         T(
           "legacyPaste",
           "兼容粘贴模式",
           "--legacy-paste",
           "用逐键输入的方式粘贴电脑剪贴板",
-          "对应 --legacy-paste。部分设备无法通过系统接口设置剪贴板时，可用这个兼容方案。"
+          "用「一个一个按键」的笨办法把电脑剪贴板贴到手机。有些手机用系统接口贴不了字时，可以用这个办法。"
         ),
         T(
           "noClipboardAutosync",
           "禁用剪贴板同步",
           "--no-clipboard-autosync",
           "停止自动同步电脑与设备的剪贴板",
-          "对应 --no-clipboard-autosync。默认双向自动同步；如果剪贴板冲突或涉及敏感内容，可以关闭。"
+          "默认电脑和手机会自动互相同步剪贴板；打开这项就不自动同步了。剪贴板老冲突，或者涉及敏感内容时可以用。"
         ),
       ],
     },
@@ -799,7 +799,7 @@
           "录制到文件",
           "--record",
           "把镜像画面保存为视频文件",
-          "对应 --record（简写 -r）。填写完整路径即可，例如 D:\\Videos\\phone.mp4；只填文件名会保存到当前用户目录。留空则不录制。",
+          "把投屏画面录成视频文件。填完整路径，例如 D:\\Videos\\phone.mp4；只填文件名会存到当前用户目录。留空就是不录。",
           "D:\\Videos\\phone.mp4"
         ),
         S(
@@ -807,7 +807,7 @@
           "录制格式",
           "--record-format",
           "指定容器格式，留空按扩展名判断",
-          "对应 --record-format。通常不需要指定；当文件扩展名缺失或想强制 MKV/音频格式时使用。",
+          "录制文件用什么格式。一般不用管，程序会看文件扩展名；只有扩展名缺失，或者想强制存成 MKV、纯音频格式时才需要选。",
           [
             { value: "", label: "自动（按扩展名，默认）" },
             { value: "mp4", label: "MP4" },
@@ -827,14 +827,14 @@
           "无窗口运行",
           "--no-window",
           "隐藏 scrcpy 窗口，仅在后台运行",
-          "对应 --no-window。适合只录制不观看；如果没有填写录制文件，scrcpy 会禁用视频，通常没有必要这样运行。"
+          "不显示 scrcpy 窗口，只在后台跑。适合只录制不看画面；如果又没填录制文件，scrcpy 会把视频关掉，通常没必要这样用。"
         ),
         N(
           "timeLimit",
           "自动停止时限",
           "--time-limit",
           "运行指定秒数后自动结束",
-          "对应 --time-limit。留空或 0 表示不限时，适合定时录制或自动化测试。",
+          "跑多少秒后自动停。留空或填 0 就是不限时。适合定时录制或自动化测试。",
           "秒",
           { min: 0, step: 1, omitValues: ["0"] }
         ),
@@ -851,7 +851,7 @@
           "窗口标题",
           "--window-title",
           "自定义 scrcpy 窗口显示的标题",
-          "对应 --window-title。留空使用默认标题，支持空格和中文。",
+          "投屏窗口标题栏上显示什么字。留空就用默认标题，空格和中文都行。",
           "我的手机"
         ),
         N(
@@ -859,7 +859,7 @@
           "窗口 X 坐标",
           "--window-x",
           "窗口左上角的水平位置，可使用负坐标",
-          "对应 --window-x。留空为自动（auto）。多显示器或把窗口放到屏幕左侧时可以使用负数，例如 -1440。",
+          "投屏窗口左上角离屏幕左边多远。留空让 scrcpy 自己放；用多显示器或想把窗口放到主屏左边时，可以填负数，例如 -1440。",
           "px",
           { step: 1 }
         ),
@@ -868,7 +868,7 @@
           "窗口 Y 坐标",
           "--window-y",
           "窗口左上角的垂直位置，可使用负坐标",
-          "对应 --window-y。留空为自动（auto）。多显示器或把窗口放到屏幕上方时可以使用负数，例如 -1120。",
+          "投屏窗口左上角离屏幕上边多远。留空让 scrcpy 自己放；用多显示器或想把窗口放到主屏上方时，可以填负数，例如 -1120。",
           "px",
           { step: 1 }
         ),
@@ -877,7 +877,7 @@
           "窗口宽度",
           "--window-width",
           "指定启动时的窗口宽度",
-          "对应 --window-width。留空或 0 为自动（官方默认，不附加参数）。可设置超过当前屏幕的尺寸，例如竖屏 1440×2560。",
+          "投屏窗口一开始有多宽。留空或填 0 就是自动（默认，不会加参数）。可以填得比屏幕还大，比如竖屏 1440×2560。",
           "px",
           { min: 0, step: 1, omitValues: ["0"] }
         ),
@@ -886,7 +886,7 @@
           "窗口高度",
           "--window-height",
           "指定启动时的窗口高度",
-          "对应 --window-height。留空或 0 为自动（官方默认，不附加参数）。可设置超过当前屏幕的尺寸，例如竖屏 1440×2560。",
+          "投屏窗口一开始有多高。留空或填 0 就是自动（默认，不会加参数）。可以填得比屏幕还大，比如竖屏 1440×2560。",
           "px",
           { min: 0, step: 1, omitValues: ["0"] }
         ),
@@ -895,7 +895,7 @@
           "画面适配方式",
           "--render-fit",
           "窗口缩放时如何填充画面",
-          "对应 --render-fit。letterbox 保持比例并留黑边；stretched 拉伸铺满；unscaled 按原始像素显示。",
+          "窗口大小和画面比例对不上时怎么显示。「保持比例 / 黑边」不会变形，但可能留黑边；「拉伸铺满」填满窗口但会变形；「原始像素」按原尺寸显示，可能显示不全。",
           [
             { value: "letterbox", label: "保持比例 / 黑边（默认）", arg: null },
             { value: "stretched", label: "拉伸铺满" },
@@ -908,7 +908,7 @@
           "视频缓冲",
           "--video-buffer",
           "增加视频延迟以换取更平稳的播放",
-          "对应 --video-buffer，单位毫秒。官方默认 0，输入 0 不会附加参数。网络抖动明显时可以适当增加，但会增加操作延迟。",
+          "给视频多加一点缓冲，网络不稳时画面更顺，但操作会慢一点。单位是毫秒，默认 0，填 0 不会加参数。",
           "ms",
           { min: 0, step: 10, omitValues: ["0"] }
         ),
@@ -917,7 +917,7 @@
           "音频缓冲",
           "--audio-buffer",
           "增加音频延迟以减少爆音和卡顿",
-          "对应 --audio-buffer，单位毫秒。官方默认 50，输入 50 不会附加参数。设置过小可能导致音频断续。",
+          "给声音多加一点缓冲，能减少爆音和卡顿。单位是毫秒，默认 50，填 50 不会加参数；设太小声音可能断断续续。",
           "ms",
           { min: 0, step: 10, omitValues: ["50"] }
         ),
@@ -926,7 +926,7 @@
           "退出时不还原设备状态",
           "--no-cleanup",
           "保留触摸显示、常亮等临时设置",
-          "对应 --no-cleanup。默认 scrcpy 退出时会恢复设备状态；开启后不清理，可能让设备的「显示触摸」或常亮保持开启。",
+          "scrcpy 退出时一般不帮你还原手机状态；打开这项后彻底不还原，像「显示触摸」、常亮这些设置可能会一直留着。",
           false
         ),
         T(
@@ -934,28 +934,28 @@
           "运行时禁用屏保",
           "--disable-screensaver",
           "防止电脑屏保在镜像时启动",
-          "对应 --disable-screensaver。适合长时间展示，但会增加电脑耗电。"
+          "投屏时不让电脑进屏保。长时间展示时有用，但会更费电。"
         ),
         T(
           "keepActive",
           "模拟用户活跃",
           "--keep-active",
           "通过模拟活动保持设备不休眠",
-          "对应 --keep-active。和「保持唤醒」类似，但会模拟用户活动；部分设备上更可靠。"
+          "用模拟用户操作的方式让手机不休眠。和「保持设备唤醒」有点像，但在一些手机上更管用。"
         ),
         T(
           "noPowerOn",
           "不自动唤醒设备",
           "--no-power-on",
           "启动时不点亮设备屏幕",
-          "对应 --no-power-on。默认 scrcpy 会尝试在连接时点亮设备；如果设备已经亮着或不想被唤醒，可开启。"
+          "连接时不自动点亮手机屏幕。默认 scrcpy 会试着点亮；手机本来就亮着，或者你不想让它亮，就打开这项。"
         ),
         S(
           "verbosity",
           "日志详细程度",
           "--verbosity",
           "控制输出日志的多少",
-          "对应 --verbosity。默认 info；排查问题时选择 debug 或 verbose。日志显示在右侧结果面板。",
+          "日志打多少。默认「信息」就够日常用；排查问题时选「调试」或「全部日志」，日志会显示在右边结果栏。",
           [
             { value: "info", label: "信息（默认）", arg: null },
             { value: "verbose", label: "全部日志" },
@@ -978,7 +978,7 @@
       "视频来源",
       "--video-source",
       "镜像屏幕，或采集设备摄像头",
-      "对应 --video-source。默认显示屏幕；选择摄像头后传 --video-source=camera。摄像头采集需要 Android 12 及以上。",
+      "把手机屏幕或者手机摄像头当画面来源。默认是屏幕；选摄像头要 Android 12 以上。",
       [
         { value: "display", label: "设备屏幕（默认）", arg: null },
         {
@@ -1013,18 +1013,18 @@
     {
       value: "focus",
       label: "仅聚焦到投屏窗口",
-      detail: "开始投屏后只把投屏窗口切到最前，控制台保持原样",
+      detail: "开始投屏后，只把投屏窗口放到最前面，控制台不动。",
     },
     {
       value: "minimize",
       label: "最小化控制台",
-      detail: "开始投屏后把投屏窗口切到最前，再把控制台最小化到任务栏",
+      detail: "开始投屏后，把投屏窗口放到最前面，再把控制台最小化到任务栏。",
     },
     {
       value: "tray",
       label: "最小化到托盘",
       detail:
-        "开始投屏后把投屏窗口切到最前，把控制台收进托盘并停止界面，只保留托盘与后端服务",
+        "开始投屏后，把投屏窗口放到最前面，控制台收进托盘，界面关掉，只留托盘和后台。",
     },
   ];
   const DEFAULT_AFTER_START = "focus";
@@ -1480,7 +1480,7 @@
       );
     }
     if (dom.appearanceSwitch) {
-      dom.appearanceSwitch.dataset.tooltip = `界面明暗：${APPEARANCES[choice]}`;
+      dom.appearanceSwitch.dataset.tooltip = `界面现在是${APPEARANCES[choice]}`;
     }
     // The colour swatch follows the shared accent palette.
     applyAccent(state.settings.accent);
@@ -1507,7 +1507,7 @@
       dom.colorDot.style.background = accentGradient(key);
     }
     if (dom.colorButton) {
-      dom.colorButton.dataset.tooltip = `界面颜色：${ACCENTS[key].label}`;
+      dom.colorButton.dataset.tooltip = `点这里换主色，现在是${ACCENTS[key].label}`;
       dom.colorButton.setAttribute(
         "aria-label",
         `界面颜色：${ACCENTS[key].label}`
@@ -1585,9 +1585,9 @@
     const targetPercent = Math.round(targetScale * 100);
     const description =
       savedValue === "system"
-        ? `跟随系统（${systemPercent}%）`
-        : `${targetPercent}%（系统缩放 ${systemPercent}%）`;
-    dom.scaleControl.dataset.tooltip = `界面缩放：${description}`;
+        ? `跟系统一样（${systemPercent}%）`
+        : `放大到 ${targetPercent}%（系统是 ${systemPercent}%）`;
+    dom.scaleControl.dataset.tooltip = `整个界面的大小：${description}`;
     dom.uiScaleInput.setAttribute("aria-label", `界面缩放：${description}`);
     dom.uiScaleToggle.setAttribute(
       "aria-expanded",
@@ -1766,8 +1766,8 @@
       enabled ? "true" : "false"
     );
     dom.autoConsoleSwitch.dataset.tooltip = enabled
-      ? "已开启：投屏结束后自动打开最小化或收进托盘的控制台"
-      : "已关闭：投屏结束后控制台保持当前状态";
+      ? "打开后：投屏结束，控制台会自己弹回来"
+      : "关闭后：投屏结束，控制台保持原样";
     if (dom.autoConsoleState) {
       dom.autoConsoleState.textContent = enabled ? "开启" : "关闭";
     }
@@ -1786,16 +1786,16 @@
       enabled ? "true" : "false"
     );
     dom.keepBackgroundSwitch.dataset.tooltip = enabled
-      ? "已开启：点窗口 × 会把控制台收进托盘并停止界面，后端继续运行；顶部按钮用于退出"
-      : "已关闭：点窗口 × 会彻底退出，顶部按钮用于收进托盘";
+      ? "打开后：点窗口的 ×，控制台收进托盘，后台继续跑；右上角按钮用来彻底退出"
+      : "关闭后：点窗口的 × 就直接退出；右上角按钮用来最小化到托盘";
     if (dom.keepBackgroundState) {
       dom.keepBackgroundState.textContent = enabled ? "开启" : "关闭";
     }
     if (dom.keepBackgroundRow) {
       dom.keepBackgroundRow.classList.toggle("is-off", !enabled);
       dom.keepBackgroundRow.dataset.tooltip = enabled
-        ? "开启时，点窗口 × 收进托盘并停止界面；顶部按钮变为「退出应用」"
-        : "关闭时，点窗口 × 彻底退出；顶部按钮用于「最小化到托盘」";
+        ? "打开后：点窗口 × 收进托盘并停掉界面，右上角变成「退出应用」"
+        : "关闭后：点窗口 × 彻底退出，右上角变成「最小化到托盘」";
     }
     if (dom.windowActionLabel) {
       dom.windowActionLabel.textContent = enabled
@@ -1807,10 +1807,10 @@
     if (dom.windowActionButton) {
       dom.windowActionButton.classList.toggle("is-quit", enabled);
       dom.windowActionButton.dataset.tooltip = enabled
-        ? "彻底退出 AutoScrcpy（窗口的关闭按钮会收进托盘）"
+        ? "彻底退出 AutoScrcpy（点窗口的 × 只会收进托盘）"
         : state.trayAvailable === false
-          ? "最小化控制台窗口（当前环境没有托盘图标）"
-          : "把控制台收进托盘并停止界面（窗口的关闭按钮会彻底退出）";
+          ? "把控制台最小化（这台电脑没有托盘图标）"
+          : "把控制台收进托盘并停掉界面（点窗口的 × 会彻底退出）";
       const use = dom.windowActionButton.querySelector("use");
       if (use) {
         use.setAttribute("href", enabled ? "#i-power" : "#i-tray");
@@ -2096,13 +2096,17 @@
     setSaveStatus("saved", useLocal ? "正在同步本地设置" : "设置已载入");
 
     dom.scrcpyVersionValue.textContent = state.tools.scrcpyVersion || "未找到";
-    dom.scrcpyVersionValue.dataset.tooltip =
-      state.tools.scrcpyPath || "PATH 中未找到 scrcpy";
+    dom.scrcpyVersionValue.dataset.tooltip = state.tools.scrcpyPath
+      ? `scrcpy 装在这里：${state.tools.scrcpyPath}`
+      : "没在 PATH 里找到 scrcpy";
     dom.adbVersionValue.textContent = shortAdbVersion(state.tools.adbVersion);
-    dom.adbVersionValue.dataset.tooltip =
-      state.tools.adbVersion || "PATH 中未找到 adb";
+    dom.adbVersionValue.dataset.tooltip = state.tools.adbVersion
+      ? `adb 版本：${state.tools.adbVersion}`
+      : "没在 PATH 里找到 adb";
     dom.portValue.textContent = `127.0.0.1:${message.port}`;
-    dom.portValue.dataset.tooltip = message.url || "";
+    dom.portValue.dataset.tooltip = message.url
+      ? `后端地址：${message.url}`
+      : "";
     if (dom.windowBackendValue) {
       const labels = {
         webview: "WebView2",
@@ -2113,8 +2117,8 @@
         labels[state.windowBackend] || state.windowBackend || "—";
       dom.windowBackendValue.dataset.tooltip =
         state.windowBackend === "webview"
-          ? `${message.webviewInfo || "WebView2"} · 关闭按钮由后端接管`
-          : "使用 Edge/Chrome 应用窗口；关闭按钮无法被后端接管";
+          ? `窗口是 ${message.webviewInfo || "WebView2"} 打开的，关闭按钮交给后端处理`
+          : "窗口是 Edge/Chrome 打开的，后端管不了关闭按钮";
     }
 
     restoreRunState(message.run);
@@ -2557,8 +2561,8 @@
         <p class="profile-meta"></p>
       </span>
       <span class="profile-tools">
-        <button class="profile-action profile-restore" type="button" data-tooltip="恢复配置（不执行）" aria-label="恢复配置">${svgIcon("i-restore")}</button>
-        <button class="profile-action profile-run" type="button" data-tooltip="直接运行此配置" aria-label="直接运行此配置">${svgIcon("i-play")}</button>
+        <button class="profile-action profile-restore" type="button" data-tooltip="只恢复设置，不马上运行" aria-label="恢复配置">${svgIcon("i-restore")}</button>
+        <button class="profile-action profile-run" type="button" data-tooltip="按这个配置直接运行" aria-label="直接运行此配置">${svgIcon("i-play")}</button>
         ${
           last
             ? ""
@@ -2568,9 +2572,9 @@
     `;
     card.querySelector(".profile-name").textContent = profile.name;
     card.querySelector(".profile-main").dataset.tooltip =
-      `${profile.name}\n${last ? "上次运行命令" : "保存时命令"}：\n` +
+      `${profile.name}\n${last ? "上次运行的命令" : "保存时用的命令"}：\n` +
       `${profile.command || "（没有记录命令）"}\n\n` +
-      "右键恢复（不执行） · 双击直接运行";
+      "右键恢复设置，双击直接运行";
     const metaParts = [
       `${profile.optionCount || 0} 个参数`,
       profileDeviceLabel(profile),
@@ -2772,8 +2776,8 @@
     dom.profileNameToggle.disabled = profiles.length === 0;
     dom.profileNameToggle.dataset.tooltip =
       profiles.length > 0
-        ? "选择已有配置以覆盖"
-        : "还没有已保存的配置";
+        ? "选一个保存过的配置来覆盖"
+        : "还没有保存过配置";
     dom.profileDialog.returnValue = "cancel";
     dom.profileDialog.showModal();
     window.setTimeout(() => {
@@ -3061,8 +3065,8 @@
       requiredSdk: required,
       label: minSdkLabel(required),
       message:
-        `当前设备是 ${current}，这个设置需要 ${minSdkLabel(required)}+。` +
-        "你的开关状态会保留，但本次运行会自动忽略该参数。",
+        `你的手机是 ${current}，这个设置要 ${minSdkLabel(required)} 以上。` +
+        "开关会保留，但这次运行会跳过它。",
     };
   }
 
@@ -3119,17 +3123,17 @@
     const sdk = deviceSdk();
     if (mode === "camera") {
       if (!supportedArg("--video-source")) {
-        return "当前 scrcpy 不支持 --video-source";
+        return "这个版本的 scrcpy 没有摄像头功能";
       }
       if (sdk !== null && sdk < CAMERA_MIN_SDK) {
-        return `摄像头采集需要 ${minSdkLabel(CAMERA_MIN_SDK)}+`;
+        return `手机要 ${minSdkLabel(CAMERA_MIN_SDK)} 以上才能用摄像头`;
       }
     } else if (mode === "virtual") {
       if (!supportedArg("--new-display")) {
-        return "当前 scrcpy 不支持 --new-display";
+        return "这个版本的 scrcpy 没有虚拟屏幕功能";
       }
       if (sdk !== null && sdk < VIRTUAL_DISPLAY_MIN_SDK) {
-        return `虚拟显示需要 ${minSdkLabel(VIRTUAL_DISPLAY_MIN_SDK)}+`;
+        return `手机要 ${minSdkLabel(VIRTUAL_DISPLAY_MIN_SDK)} 以上才能用虚拟屏幕`;
       }
     }
     return "";
@@ -3168,7 +3172,7 @@
         button.classList.toggle("is-active", active);
         button.setAttribute("aria-checked", active ? "true" : "false");
         button.dataset.tooltip = reason
-          ? `${info.label}：${info.detail}\n\n当前不可用：${reason}`
+          ? `${info.label}：${info.detail}\n\n暂时用不了：${reason}`
           : `${info.label}：${info.detail}`;
       }
     }
@@ -3218,57 +3222,57 @@
 
   function getDisabledReason(option) {
     if (!state.helloReceived) {
-      return "正在加载设置…";
+      return "正在读取设置，稍等一下…";
     }
     const sdk = deviceSdk();
     if (option.id === "hwdec" && option.flag && !supportedArg(option.flag)) {
-      return "硬件解码需要 scrcpy 5.0+（当前版本没有 --hwdec）";
+      return "这个 scrcpy 太旧，没有硬件解码（要 5.0 以上）";
     }
     if (option.flag && !supportedArg(option.flag)) {
-      return "当前 scrcpy 版本不支持此参数";
+      return "这个 scrcpy 没有这个参数，暂时用不了";
     }
     if (option.id === "newDisplay" && displayIdActive()) {
-      return "已填写「镜像显示 ID」，两者互斥";
+      return "已经填了「镜像显示 ID」，这两个只能选一个";
     }
     if (option.id === "displayId" && virtualDisplayActive()) {
-      return "已开启「虚拟显示尺寸」，两者互斥";
+      return "已经开了「虚拟显示尺寸」，这两个只能选一个";
     }
     if (option.id === "hwdec" && state.settings.options.noWindow) {
-      return "「无窗口运行」没有视频播放，硬件解码不可用";
+      return "「无窗口运行」时没有画面可解码，这项用不了";
     }
     if (option.requiresVirtualDisplay) {
       if (sdk !== null && sdk < 29) {
-        return "虚拟显示需要 Android 10+";
+        return "手机要 Android 10 以上才能用虚拟屏幕";
       }
       if (!virtualDisplayActive()) {
-        return "需要先设置「虚拟显示尺寸」";
+        return "先开「虚拟显示尺寸」";
       }
     }
     if (
       option.id === "displayOrientation" &&
       String(state.settings.options.orientation ?? "0") !== "0"
     ) {
-      return "已被「整体方向」覆盖（--orientation 会同时设置预览与录制）";
+      return "已经被「整体方向」覆盖了（那边会一起管预览和录制）";
     }
     if (option.minSdk && sdk !== null && sdk < option.minSdk) {
-      return `需要 ${minSdkLabel(option.minSdk)}+`;
+      return `手机要 ${minSdkLabel(option.minSdk)} 以上才能用`;
     }
     if (option.requiresRecord && !String(state.settings.options.record || "").trim()) {
-      return "请先填写录制文件";
+      return "先填要保存的录制文件";
     }
     if (option.requires) {
       const otherValue = state.settings.options[option.requires.option];
       if (otherValue !== option.requires.equals) {
         if (option.requires.option === "noAudio") {
-          return "需要开启声音转发";
+          return "先关掉「静音镜像」，把声音打开";
         }
         if (option.requires.option === "videoSource") {
-          return "需要先切换到摄像头模式";
+          return "先切换到摄像头模式";
         }
         if (option.requires.option === "audioSource") {
-          return "需要声音来源选择「应用播放」";
+          return "声音来源要先选「应用播放」";
         }
-        return "当前选项不适用";
+        return "现在这个组合用不了";
       }
     }
     return "";
@@ -3768,7 +3772,7 @@
       row.querySelector(".option-lock").textContent =
         reason ||
         (versionWarning
-          ? `需要 ${versionWarning.label}+；本次运行会忽略此参数`
+          ? `手机要 ${versionWarning.label} 以上；这次运行会跳过它`
           : "");
 
       const warningButton = row.querySelector(".version-warning");
@@ -3777,7 +3781,7 @@
         warningButton.dataset.tooltip = versionWarning.message;
         warningButton.setAttribute(
           "aria-label",
-          `需要 ${versionWarning.label}+，点击或悬停查看说明`
+          `手机要 ${versionWarning.label} 以上，点一下或悬停看说明`
         );
       } else {
         warningButton.removeAttribute("data-tooltip");
@@ -3785,7 +3789,7 @@
 
       const tooltipParts = [option.detail];
       if (reason) {
-        tooltipParts.push(`当前不可用：${reason}`);
+        tooltipParts.push(`暂时用不了：${reason}`);
       }
       if (versionWarning) {
         tooltipParts.push(versionWarning.message);
@@ -4781,14 +4785,16 @@
         const allowed = choiceAllowed(choice);
         const requirement = allowed
           ? ""
-          : `（需 ${minSdkShortLabel(choice.minSdk)}）`;
+          : `（要 ${minSdkShortLabel(choice.minSdk)} 以上）`;
         return {
           value: choice.value,
           label: `${choice.label}${requirement}`,
           valueLabel: choice.value,
           selected: choice.value === value,
           disabled: !allowed,
-          title: allowed ? "" : `${choice.label}${requirement}`,
+          title: allowed
+            ? ""
+            : `这个选项要 ${minSdkShortLabel(choice.minSdk)} 以上才能用`,
         };
       }),
       onPick(nextValue) {
